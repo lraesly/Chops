@@ -1,0 +1,55 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#waveGradient)"/>
+
+  <!-- Sound wave "C" shape - multiple arcs with varying thickness -->
+  <!-- Outer wave -->
+  <path
+    d="M 340 120
+       A 180 180 0 1 0 340 392"
+    fill="none"
+    stroke="white"
+    stroke-width="28"
+    stroke-linecap="round"
+  />
+
+  <!-- Middle wave -->
+  <path
+    d="M 300 160
+       A 130 130 0 1 0 300 352"
+    fill="none"
+    stroke="white"
+    stroke-width="24"
+    stroke-linecap="round"
+    opacity="0.85"
+  />
+
+  <!-- Inner wave -->
+  <path
+    d="M 265 200
+       A 80 80 0 1 0 265 312"
+    fill="none"
+    stroke="white"
+    stroke-width="20"
+    stroke-linecap="round"
+    opacity="0.7"
+  />
+
+  <!-- Core wave (smallest) -->
+  <path
+    d="M 235 235
+       A 35 35 0 1 0 235 277"
+    fill="none"
+    stroke="white"
+    stroke-width="16"
+    stroke-linecap="round"
+    opacity="0.55"
+  />
+</svg>

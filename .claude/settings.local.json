@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(pkill:*)",
+      "Bash(npm run tauri:dev:*)",
+      "Bash(pgrep:*)",
+      "Bash(xargs kill:*)",
+      "Bash(npm run tauri:build:*)"
+    ]
+  }
+}
