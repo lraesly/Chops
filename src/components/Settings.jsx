@@ -53,7 +53,7 @@ export function Settings({
       );
 
       if (confirmed) {
-        onResetStorage();
+        await onResetStorage();
         setCurrentPath(null);
         showMessage('Storage configuration reset. The app will reload.');
         setTimeout(() => window.location.reload(), 1500);
@@ -82,7 +82,7 @@ export function Settings({
         await writeDataToFile(newPath, currentData);
 
         // Update stored path
-        setStoragePath(newPath);
+        await setStoragePath(newPath);
         setCurrentPath(newPath);
 
         showMessage('Storage location changed successfully!');

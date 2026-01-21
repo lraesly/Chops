@@ -62,6 +62,80 @@ const loadTauriModules = async () => {
 
 const STORAGE_PATH_KEY = 'practiceLog_storagePath';
 const DATA_FILENAME = 'practice-log-data.json';
+const CONFIG_FILENAME = 'config.json';
+
+// Cache for app config
+let appConfigCache = null;
+let appConfigDir = null;
+
+// Get the app config directory (platform-specific app data location)
+const getAppConfigDir = async () => {
+  if (appConfigDir) return appConfigDir;
+  if (!isTauri()) return null;
+
+  try {
+    const { path } = await loadTauriModules();
+    if (!path) return null;
+    appConfigDir = await withTimeout(path.appConfigDir(), 5000);
+    console.log('App config dir:', appConfigDir);
+    return appConfigDir;
+  } catch (error) {
+    console.error('Error getting app config dir:', error);
+    return null;
+  }
+};
+
+// Read app config from the app data directory
+const readAppConfig = async () => {
+  if (appConfigCache) return appConfigCache;
+  if (!isTauri()) return {};
+
+  try {
+    const { fs } = await loadTauriModules();
+    const configDir = await getAppConfigDir();
+    if (!fs || !configDir) return {};
+
+    const configPath = `${configDir}${CONFIG_FILENAME}`;
+    try {
+      const content = await withTimeout(fs.readTextFile(configPath), 5000);
+      appConfigCache = JSON.parse(content);
+      console.log('App config loaded:', appConfigCache);
+      return appConfigCache;
+    } catch (readError) {
+      // Config doesn't exist yet
+      console.log('No config file yet, using defaults');
+      return {};
+    }
+  } catch (error) {
+    console.error('Error reading app config:', error);
+    return {};
+  }
+};
+
+// Write app config to the app data directory
+const writeAppConfig = async (config) => {
+  if (!isTauri()) return;
+
+  try {
+    const { fs } = await loadTauriModules();
+    const configDir = await getAppConfigDir();
+    if (!fs || !configDir) return;
+
+    // Ensure config directory exists
+    try {
+      await withTimeout(fs.mkdir(configDir, { recursive: true }), 5000);
+    } catch (e) {
+      // Directory might already exist
+    }
+
+    const configPath = `${configDir}${CONFIG_FILENAME}`;
+    await withTimeout(fs.writeTextFile(configPath, JSON.stringify(config, null, 2)), 5000);
+    appConfigCache = config;
+    console.log('App config saved:', config);
+  } catch (error) {
+    console.error('Error writing app config:', error);
+  }
+};
 
 // Write queue to prevent concurrent file writes from overwriting each other
 let writeQueue = Promise.resolve();
@@ -113,19 +187,45 @@ const queueWrite = (key, value) => {
   }, 100);
 };
 
-// Get the configured storage path from localStorage
+// Get the configured storage path (sync - from localStorage cache)
 export const getStoragePath = () => {
   return localStorage.getItem(STORAGE_PATH_KEY);
 };
 
-// Set the storage path in localStorage
-export const setStoragePath = (path) => {
+// Set the storage path (updates both localStorage and app config)
+export const setStoragePath = async (path) => {
   localStorage.setItem(STORAGE_PATH_KEY, path);
+  // Also save to app config for persistence across reinstalls
+  if (isTauri()) {
+    const config = await readAppConfig();
+    config.storagePath = path;
+    await writeAppConfig(config);
+  }
 };
 
 // Clear the storage path (for reset functionality)
-export const clearStoragePath = () => {
+export const clearStoragePath = async () => {
   localStorage.removeItem(STORAGE_PATH_KEY);
+  appConfigCache = null;
+  // Also clear from app config
+  if (isTauri()) {
+    const config = await readAppConfig();
+    delete config.storagePath;
+    await writeAppConfig(config);
+  }
+};
+
+// Load storage path from app config (call on startup)
+export const loadStoragePathFromConfig = async () => {
+  if (!isTauri()) return null;
+
+  const config = await readAppConfig();
+  if (config.storagePath) {
+    // Sync to localStorage for quick access
+    localStorage.setItem(STORAGE_PATH_KEY, config.storagePath);
+    return config.storagePath;
+  }
+  return null;
 };
 
 // Get default storage path
@@ -264,10 +364,22 @@ export function useStorageSetup() {
         return;
       }
 
+      // First, try to load from app config (persists across reinstalls)
+      const configPath = await loadStoragePathFromConfig();
+      if (configPath) {
+        setStoragePathState(configPath);
+        setIsConfigured(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Fall back to localStorage (for backwards compatibility)
       const savedPath = getStoragePath();
       if (savedPath) {
         setStoragePathState(savedPath);
         setIsConfigured(true);
+        // Migrate to app config
+        await setStoragePath(savedPath);
       }
       setIsLoading(false);
     };
@@ -285,8 +397,8 @@ export function useStorageSetup() {
       }
 
       if (pathToUse) {
-        // Just save the path - directory will be created when we write data
-        setStoragePath(pathToUse);
+        // Save the path to both localStorage and app config
+        await setStoragePath(pathToUse);
         setStoragePathState(pathToUse);
         setIsConfigured(true);
         console.log('Storage configured:', pathToUse);
@@ -310,8 +422,8 @@ export function useStorageSetup() {
     return null;
   }, [setupStorage]);
 
-  const resetStorage = useCallback(() => {
-    clearStoragePath();
+  const resetStorage = useCallback(async () => {
+    await clearStoragePath();
     setStoragePathState(null);
     setIsConfigured(false);
     console.log('Storage configuration reset');

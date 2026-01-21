@@ -10,6 +10,7 @@ export function PracticeItemsModal({
   sessionItems,
   onItemsChange,
   onAddToSession,
+  onRemoveFromSession,
   onArchiveItem,
   userTags,
   onAddTag,
@@ -68,6 +69,7 @@ export function PracticeItemsModal({
             sessionItems={sessionItems}
             onItemsChange={onItemsChange}
             onAddToSession={onAddToSession}
+            onRemoveFromSession={onRemoveFromSession}
             onArchiveItem={onArchiveItem}
             userTags={userTags}
             onAddTag={onAddTag}

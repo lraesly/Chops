@@ -15,6 +15,7 @@ export function PracticeItems({
   sessionItems = [],
   onItemsChange,
   onAddToSession,
+  onRemoveFromSession,
   onArchiveItem,
   userTags = [],
   onAddTag,
@@ -81,6 +82,10 @@ export function PracticeItems({
         attachments: [],
       };
       onItemsChange([...items, newItem]);
+      // Auto-add to session when in modal (picker) mode
+      if (isModal && onAddToSession) {
+        handleAddToSession(newItem);
+      }
       setNewItemName('');
       setNewItemCategory(null);
       setNewItemTags([]);
@@ -308,10 +313,23 @@ export function PracticeItems({
                       {renderItemStats(item.id)}
                     </div>
                     {isItemInSession(item.id) || recentlyAdded.has(item.id) ? (
-                      <span className="px-3 py-1 text-sm bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-lg flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          if (onRemoveFromSession) {
+                            onRemoveFromSession(item.id);
+                            setRecentlyAdded(prev => {
+                              const next = new Set(prev);
+                              next.delete(item.id);
+                              return next;
+                            });
+                          }
+                        }}
+                        className="px-3 py-1 text-sm bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-lg flex items-center gap-1 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+                        title="Remove from session"
+                      >
                         <CheckCircle size={14} />
                         Added
-                      </span>
+                      </button>
                     ) : (
                       <button
                         onClick={() => handleAddToSession(item)}

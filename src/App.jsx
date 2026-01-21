@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Music } from 'lucide-react';
+import { ChopsIcon } from './components/ChopsIcon';
 import { useFileStorage, useStorageSetup } from './hooks/useFileStorage';
 import { useSpacebarToggle } from './hooks/useKeyboardShortcuts';
 import { Navigation } from './components/Navigation';
@@ -80,6 +80,15 @@ function App() {
     setSessionItems(sessionItems.filter((_, i) => i !== index));
   };
 
+  const handleRemoveFromSessionByItemId = (itemId) => {
+    // Remove all instances of this item from the session
+    const itemsToRemove = sessionItems.filter(si => si.id === itemId);
+    itemsToRemove.forEach(item => {
+      setRecordings(prev => prev.filter(r => r.sessionInstanceId !== item.sessionInstanceId));
+    });
+    setSessionItems(prev => prev.filter(si => si.id !== itemId));
+  };
+
   const handleReorderSession = (newItems) => {
     setSessionItems(newItems);
   };
@@ -146,7 +155,7 @@ function App() {
       <header className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl">
-            <Music className="text-white" size={24} />
+            <ChopsIcon className="text-white" size={24} />
           </div>
           <div className="flex-1">
             <h1 className="text-xl font-bold text-gray-800 dark:text-white">Chops</h1>
@@ -171,6 +180,7 @@ function App() {
               sessionItems={sessionItems}
               onItemsChange={setPracticeItems}
               onAddToSession={handleAddToSession}
+              onRemoveFromSession={handleRemoveFromSessionByItemId}
               onArchiveItem={handleArchiveItem}
               userTags={userTags}
               onAddTag={handleAddTag}
