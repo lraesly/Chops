@@ -68,6 +68,8 @@ export const PracticeSession = forwardRef(function PracticeSession({
   onDeleteRecording,
   sessions = [],
   onOpenItemsPicker,
+  initialSessionTime = 0,
+  onSessionTimeChange,
 }, ref) {
   const sessionTimer = useTimer();
   const itemTimer = useItemTimer();
@@ -127,6 +129,35 @@ export const PracticeSession = forwardRef(function PracticeSession({
       return () => clearInterval(syncInterval);
     }
   }, [itemTimer.isRunning, itemTimer.time, currentItemIndex, currentItem, onUpdateSessionItemTime]);
+
+  // Initialize session timer from persisted time (on mount only)
+  useEffect(() => {
+    if (initialSessionTime > 0) {
+      sessionTimer.setInitialTime(initialSessionTime);
+      setSessionStarted(true);
+    } else if (sessionItems.length > 0) {
+      // If there are persisted items but no time, still mark session as started
+      setSessionStarted(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
+  // Persist session time periodically while running
+  useEffect(() => {
+    if (sessionTimer.isRunning && onSessionTimeChange) {
+      const persistInterval = setInterval(() => {
+        onSessionTimeChange(sessionTimer.time);
+      }, 5000); // Persist every 5 seconds
+      return () => clearInterval(persistInterval);
+    }
+  }, [sessionTimer.isRunning, sessionTimer.time, onSessionTimeChange]);
+
+  // Persist session time when paused
+  useEffect(() => {
+    if (!sessionTimer.isRunning && sessionTimer.time > 0 && onSessionTimeChange) {
+      onSessionTimeChange(sessionTimer.time);
+    }
+  }, [sessionTimer.isRunning, sessionTimer.time, onSessionTimeChange]);
 
   const moveItem = (index, direction) => {
     const newIndex = index + direction;

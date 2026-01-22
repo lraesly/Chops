@@ -34,6 +34,11 @@ export function useTimer() {
     startTimeRef.current = null;
   }, []);
 
+  const setInitialTime = useCallback((initialTime) => {
+    setTime(initialTime);
+    accumulatedTimeRef.current = initialTime;
+  }, []);
+
   const toggle = useCallback(() => {
     if (isRunning) {
       pause();
@@ -49,6 +54,7 @@ export function useTimer() {
     pause,
     reset,
     toggle,
+    setInitialTime,
   };
 }
 

@@ -19,9 +19,10 @@ function App() {
   const [currentView, setCurrentView] = useState('practice');
   const [practiceItems, setPracticeItems, itemsLoaded] = useFileStorage('practiceItems', []);
   const [archivedItems, setArchivedItems] = useFileStorage('archivedItems', []);
-  const [sessionItems, setSessionItems] = useState([]);
+  const [sessionItems, setSessionItems, sessionItemsLoaded] = useFileStorage('sessionQueue', []);
   const [sessions, setSessions, sessionsLoaded] = useFileStorage('practiceSessions', []);
-  const [recordings, setRecordings] = useState([]);
+  const [recordings, setRecordings, recordingsLoaded] = useFileStorage('sessionRecordings', []);
+  const [sessionTotalTime, setSessionTotalTime] = useFileStorage('sessionTotalTime', 0);
   const [userTags, setUserTags] = useFileStorage('userTags', []);
   const [colorTheme, setColorTheme] = useFileStorage('colorTheme', 'violet');
   const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
@@ -48,7 +49,7 @@ function App() {
   }
 
   // Show loading state
-  if (isLoading || (isTauri && (!itemsLoaded || !sessionsLoaded))) {
+  if (isLoading || (isTauri && (!itemsLoaded || !sessionsLoaded || !sessionItemsLoaded || !recordingsLoaded))) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
@@ -103,6 +104,7 @@ function App() {
     setSessions([...sessions, session]);
     setSessionItems([]);
     setRecordings([]);
+    setSessionTotalTime(0);
   };
 
   const handleDeleteSession = (sessionId) => {
@@ -197,6 +199,8 @@ function App() {
               onDeleteRecording={handleDeleteRecording}
               sessions={sessions}
               onOpenItemsPicker={() => setIsItemsModalOpen(true)}
+              initialSessionTime={sessionTotalTime}
+              onSessionTimeChange={setSessionTotalTime}
             />
           </div>
         )}
