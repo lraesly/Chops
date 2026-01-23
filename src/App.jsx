@@ -12,9 +12,11 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { StorageSetup } from './components/StorageSetup';
 import { Settings } from './components/Settings';
 import { Reports } from './components/Reports';
+import { useToast } from './components/Toast';
 
 function App() {
   const { isConfigured, isLoading, setupStorage, chooseFolder, resetStorage, isTauri } = useStorageSetup();
+  const { addToast } = useToast();
 
   const [currentView, setCurrentView] = useState('practice');
   const [practiceItems, setPracticeItems, itemsLoaded] = useFileStorage('practiceItems', []);
@@ -70,6 +72,7 @@ function App() {
     // Use unique sessionInstanceId for each item added to queue
     const sessionInstanceId = `${item.id}-${Date.now()}`;
     setSessionItems([...sessionItems, { ...item, sessionInstanceId, itemTime: 0 }]);
+    addToast(`Added "${item.name}" to session`);
   };
 
   const handleRemoveFromSession = (index) => {
@@ -84,10 +87,12 @@ function App() {
   const handleRemoveFromSessionByItemId = (itemId) => {
     // Remove all instances of this item from the session
     const itemsToRemove = sessionItems.filter(si => si.id === itemId);
+    const itemName = itemsToRemove[0]?.name || 'Item';
     itemsToRemove.forEach(item => {
       setRecordings(prev => prev.filter(r => r.sessionInstanceId !== item.sessionInstanceId));
     });
     setSessionItems(prev => prev.filter(si => si.id !== itemId));
+    addToast(`Removed "${itemName}" from session`);
   };
 
   const handleReorderSession = (newItems) => {
@@ -133,12 +138,14 @@ function App() {
   const handleArchiveItem = (item) => {
     setPracticeItems(prev => prev.filter((i) => i.id !== item.id));
     setArchivedItems(prev => [...prev, { ...item, archivedAt: new Date().toISOString() }]);
+    addToast(`Archived "${item.name}"`);
   };
 
   const handleRestoreItem = (item) => {
     setArchivedItems(prev => prev.filter((i) => i.id !== item.id));
     const { archivedAt, ...restoredItem } = item;
     setPracticeItems(prev => [...prev, restoredItem]);
+    addToast(`Restored "${item.name}"`);
   };
 
   const handleDeleteArchivedItem = (itemId) => {

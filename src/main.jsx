@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { ToastProvider } from './components/Toast'
 
 // Error boundary to catch any errors
 class ErrorBoundary extends Component {
@@ -56,7 +57,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,

@@ -159,6 +159,14 @@ export const PracticeSession = forwardRef(function PracticeSession({
     }
   }, [sessionTimer.isRunning, sessionTimer.time, onSessionTimeChange]);
 
+  // Pause timers if all items are removed from session
+  useEffect(() => {
+    if (sessionItems.length === 0 && sessionTimer.isRunning) {
+      sessionTimer.pause();
+      itemTimer.pause();
+    }
+  }, [sessionItems.length, sessionTimer.isRunning]);
+
   const moveItem = (index, direction) => {
     const newIndex = index + direction;
     if (newIndex >= 0 && newIndex < sessionItems.length) {
@@ -340,27 +348,21 @@ export const PracticeSession = forwardRef(function PracticeSession({
           </div>
         </div>
 
-        {/* Save Session - Bottom Right */}
-        <button
-          onClick={handleSaveSession}
-          disabled={!sessionStarted || sessionTimer.time === 0}
-          className={`absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
-            sessionStarted && sessionTimer.time > 0
-              ? 'bg-green-500 text-white hover:bg-green-600'
-              : 'bg-white/20 text-white/50 cursor-not-allowed'
-          }`}
-        >
-          <Save size={18} />
-          <span className="hidden sm:inline">Save Session</span>
-        </button>
+        {/* Save Session - Bottom Right (only show if there are items) */}
+        {sessionItems.length > 0 && sessionStarted && sessionTimer.time > 0 && (
+          <button
+            onClick={handleSaveSession}
+            className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-all"
+          >
+            <Save size={18} />
+            <span className="hidden sm:inline">Save Session</span>
+          </button>
+        )}
         <div className="text-center mb-4">
           <p className="text-primary-200 text-sm mb-1">Total Session Time</p>
-          <div className="text-5xl font-bold tracking-tight mb-2">
+          <div className="text-5xl font-bold tracking-tight">
             {formatTime(sessionTimer.time)}
           </div>
-          <p className="text-primary-200">
-            {currentItem ? `Practicing: ${currentItem.name}` : 'Select an item to practice'}
-          </p>
         </div>
 
         {/* Item Timer */}
@@ -368,8 +370,8 @@ export const PracticeSession = forwardRef(function PracticeSession({
           <div className="bg-white/10 rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Timer size={18} className="text-primary-200" />
-                <span className="text-primary-200 text-sm">Item Time</span>
+                <Timer size={20} className="text-white/80" />
+                <span className="text-lg font-bold">Practicing: {currentItem.name}</span>
               </div>
               <div className="text-2xl font-bold">
                 {formatTime(itemTimer.time)}
@@ -412,22 +414,25 @@ export const PracticeSession = forwardRef(function PracticeSession({
           </div>
         )}
 
-        <div className="flex justify-center gap-4">
-          <button
-            onClick={handleToggleSessionTimer}
-            disabled={!currentItem}
-            className="p-4 bg-white/20 backdrop-blur rounded-full hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            title={sessionTimer.isRunning ? "Pause session" : "Start session"}
-          >
-            {sessionTimer.isRunning ? <Pause size={32} /> : <Play size={32} />}
-          </button>
-          <button
-            onClick={handleResetSession}
-            className="p-4 bg-white/20 backdrop-blur rounded-full hover:bg-white/30 transition-colors"
-            title="Reset all timers"
-          >
-            <RotateCcw size={32} />
-          </button>
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={handleToggleSessionTimer}
+              disabled={!currentItem}
+              className="p-4 bg-white/20 backdrop-blur rounded-full hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={sessionTimer.isRunning ? "Pause session" : "Start session"}
+            >
+              {sessionTimer.isRunning ? <Pause size={32} /> : <Play size={32} />}
+            </button>
+            <button
+              onClick={handleResetSession}
+              className="p-4 bg-white/20 backdrop-blur rounded-full hover:bg-white/30 transition-colors"
+              title="Reset all timers"
+            >
+              <RotateCcw size={32} />
+            </button>
+          </div>
+          <p className="text-xs text-white/60">Press SPACE to start/pause</p>
         </div>
       </div>
 
@@ -435,19 +440,29 @@ export const PracticeSession = forwardRef(function PracticeSession({
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Session Queue</h3>
-          <button
-            onClick={onOpenItemsPicker}
-            className="flex items-center gap-2 px-3 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-xl transition-colors"
-          >
-            <Plus size={18} />
-            <span className="hidden sm:inline">Add Items</span>
-          </button>
+          {sessionItems.length > 0 && (
+            <button
+              onClick={onOpenItemsPicker}
+              className="flex items-center gap-2 px-3 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-xl transition-colors"
+            >
+              <Plus size={18} />
+              <span className="hidden sm:inline">Add Items</span>
+            </button>
+          )}
         </div>
 
         {sessionItems.length === 0 ? (
-          <p className="text-gray-400 dark:text-gray-500 text-center py-8">
-            Add practice items to start your session
-          </p>
+          <button
+            onClick={onOpenItemsPicker}
+            className="w-full text-center py-8 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+          >
+            <div className="w-16 h-16 mx-auto mb-3 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center group-hover:bg-primary-200 dark:group-hover:bg-primary-900/50 transition-colors">
+              <Plus size={32} className="text-primary-500 dark:text-primary-400" />
+            </div>
+            <p className="text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+              Add items to start practicing
+            </p>
+          </button>
         ) : (
           <div className="space-y-2">
             {sessionItems.map((item, index) => (
@@ -500,7 +515,14 @@ export const PracticeSession = forwardRef(function PracticeSession({
                   )}
                 </button>
 
-                <span className="flex-1 text-gray-700 dark:text-gray-200">{item.name}</span>
+                <div className="flex-1 flex items-center gap-2">
+                  <span className="text-gray-700 dark:text-gray-200">{item.name}</span>
+                  {index === currentItemIndex && itemTimer.isRunning && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-primary-600 text-white rounded animate-pulse">
+                      Now
+                    </span>
+                  )}
+                </div>
 
                 {/* Show item time */}
                 <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">

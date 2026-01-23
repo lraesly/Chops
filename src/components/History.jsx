@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Calendar, Clock, Music, Trash2, ChevronDown, ChevronUp, Play, Pause, FileText } from 'lucide-react';
 import { formatTime } from '../hooks/useTimer';
-import { useRef } from 'react';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export function History({ sessions, onDeleteSession }) {
   const [expandedSession, setExpandedSession] = useState(null);
   const [playingRecording, setPlayingRecording] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const audioRefs = useRef({});
 
   const formatDate = (dateString) => {
@@ -112,7 +113,7 @@ export function History({ sessions, onDeleteSession }) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDeleteSession(session.id);
+                            setDeleteConfirm(session);
                           }}
                           className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                         >
@@ -207,6 +208,15 @@ export function History({ sessions, onDeleteSession }) {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={() => onDeleteSession(deleteConfirm.id)}
+        title="Delete Session"
+        message={`Delete this practice session from ${deleteConfirm ? new Date(deleteConfirm.date).toLocaleDateString() : ''}? This action cannot be undone.`}
+        confirmText="Delete"
+      />
     </div>
   );
 }
