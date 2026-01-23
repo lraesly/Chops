@@ -7,7 +7,6 @@ export function Statistics({ sessions, onDeleteSessionsByDateRange, onClearAllSe
   const [resetType, setResetType] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [confirmText, setConfirmText] = useState('');
 
   const now = new Date();
 
@@ -137,8 +136,6 @@ export function Statistics({ sessions, onDeleteSessionsByDateRange, onClearAllSe
   };
 
   const handleReset = () => {
-    if (confirmText !== 'DELETE') return;
-
     if (resetType === 'all') {
       onClearAllSessions();
     } else if (resetType === 'range' && startDate && endDate) {
@@ -156,9 +153,15 @@ export function Statistics({ sessions, onDeleteSessionsByDateRange, onClearAllSe
     }
 
     setShowResetModal(false);
-    setConfirmText('');
     setStartDate('');
     setEndDate('');
+  };
+
+  const canDelete = () => {
+    if (resetType === 'all') return sessions.length > 0;
+    if (resetType === 'day') return startDate && getSessionsToDelete() > 0;
+    if (resetType === 'range') return startDate && endDate && getSessionsToDelete() > 0;
+    return false;
   };
 
   const getSessionsToDelete = () => {
@@ -320,7 +323,7 @@ export function Statistics({ sessions, onDeleteSessionsByDateRange, onClearAllSe
               <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
                 <AlertTriangle className="text-red-600 dark:text-red-400" size={24} />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Reset History</h3>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Delete History</h3>
             </div>
 
             <div className="space-y-4 mb-6">
@@ -367,31 +370,22 @@ export function Statistics({ sessions, onDeleteSessionsByDateRange, onClearAllSe
                 </div>
               )}
 
-              {getSessionsToDelete() > 0 && (
-                <p className="text-sm text-red-600 dark:text-red-400">
-                  This will delete {getSessionsToDelete()} session{getSessionsToDelete() !== 1 ? 's' : ''}.
-                </p>
+              {canDelete() && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                    This will permanently delete {getSessionsToDelete()} session{getSessionsToDelete() !== 1 ? 's' : ''}.
+                  </p>
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                    This action cannot be undone.
+                  </p>
+                </div>
               )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Type DELETE to confirm
-                </label>
-                <input
-                  type="text"
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder="DELETE"
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-              </div>
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={() => {
                   setShowResetModal(false);
-                  setConfirmText('');
                   setStartDate('');
                   setEndDate('');
                 }}
@@ -401,10 +395,10 @@ export function Statistics({ sessions, onDeleteSessionsByDateRange, onClearAllSe
               </button>
               <button
                 onClick={handleReset}
-                disabled={confirmText !== 'DELETE' || getSessionsToDelete() === 0}
+                disabled={!canDelete()}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Delete
+                Delete {getSessionsToDelete() > 0 ? `(${getSessionsToDelete()})` : ''}
               </button>
             </div>
           </div>

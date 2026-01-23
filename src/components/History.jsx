@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react';
-import { Calendar, Clock, Music, Trash2, ChevronDown, ChevronUp, Play, Pause, FileText } from 'lucide-react';
+import { Calendar, Clock, Music, Trash2, ChevronDown, ChevronUp, Play, Pause, FileText, Copy } from 'lucide-react';
 import { formatTime } from '../hooks/useTimer';
 import { ConfirmDialog } from './ConfirmDialog';
 
-export function History({ sessions, onDeleteSession }) {
+export function History({ sessions, onDeleteSession, onCopyToSession }) {
   const [expandedSession, setExpandedSession] = useState(null);
   const [playingRecording, setPlayingRecording] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -93,7 +93,7 @@ export function History({ sessions, onDeleteSession }) {
                           <Music className="text-primary-600 dark:text-primary-400" size={20} />
                         </div>
 
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-800 dark:text-white">
                             {session.items.length} item
                             {session.items.length !== 1 ? 's' : ''} practiced
@@ -101,6 +101,13 @@ export function History({ sessions, onDeleteSession }) {
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             {formatTimeOfDay(session.date)}
                           </p>
+                          {/* Notes preview - shown in collapsed state */}
+                          {session.notes && expandedSession !== session.id && (
+                            <p className="text-sm text-primary-600 dark:text-primary-400 mt-1 truncate flex items-center gap-1">
+                              <FileText size={12} className="flex-shrink-0" />
+                              <span className="truncate">{session.notes}</span>
+                            </p>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
@@ -144,9 +151,18 @@ export function History({ sessions, onDeleteSession }) {
                             )}
 
                             <div>
-                            <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
-                              Practice Items:
-                            </p>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                                Practice Items:
+                              </p>
+                              <button
+                                onClick={() => onCopyToSession(session)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-900/60 transition-colors"
+                              >
+                                <Copy size={14} />
+                                Copy to Session
+                              </button>
+                            </div>
                             {session.items.map((item, index) => (
                               <div
                                 key={`${item.id}-${index}`}

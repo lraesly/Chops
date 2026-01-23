@@ -165,3 +165,59 @@ input[type="range"]::-moz-range-thumb {
   border: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
+
+/* Global focus-visible styles for keyboard navigation accessibility */
+/* Only shows focus ring when navigating with keyboard, not on mouse click */
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible:not([tabindex="-1"]) {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--primary-500) / 0.5), 0 0 0 4px rgb(var(--primary-500) / 0.25);
+  border-radius: inherit;
+}
+
+/* Input fields - text, date, select */
+input:focus-visible:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--primary-500) / 0.5);
+  border-color: rgb(var(--primary-500));
+}
+
+/* Range input focus */
+input[type="range"]:focus-visible {
+  outline: none;
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgb(var(--primary-500) / 0.5), 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px rgb(var(--primary-500) / 0.5), 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Checkbox and radio focus */
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: 2px solid rgb(var(--primary-500));
+  outline-offset: 2px;
+}
+
+/* Dark mode adjustments for better contrast */
+.dark button:focus-visible,
+.dark a:focus-visible,
+.dark [role="button"]:focus-visible,
+.dark [tabindex]:focus-visible:not([tabindex="-1"]) {
+  box-shadow: 0 0 0 2px rgb(var(--primary-400) / 0.6), 0 0 0 4px rgb(var(--primary-400) / 0.3);
+}
+
+.dark input:focus-visible:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+.dark textarea:focus-visible,
+.dark select:focus-visible {
+  box-shadow: 0 0 0 2px rgb(var(--primary-400) / 0.6);
+  border-color: rgb(var(--primary-400));
+}

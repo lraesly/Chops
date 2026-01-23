@@ -6,6 +6,7 @@ import { RecordButton } from './RecordButton';
 import { RecordingsList } from './AudioRecorder';
 import { AttachmentList } from './AttachmentList';
 import { RichTextEditor } from './RichTextEditor';
+import { ConfirmDialog } from './ConfirmDialog';
 
 function useItemTimer() {
   const [time, setTime] = useState(0);
@@ -63,6 +64,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
   onReorderSession,
   onUpdateSessionItemTime,
   onSaveSession,
+  onResetSession,
   recordings,
   onSaveRecording,
   onDeleteRecording,
@@ -79,6 +81,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
   const [sessionStarted, setSessionStarted] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [savedSessionInfo, setSavedSessionInfo] = useState(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const prevItemIndexRef = useRef(null);
 
   const currentItem = sessionItems[currentItemIndex];
@@ -322,9 +325,25 @@ export const PracticeSession = forwardRef(function PracticeSession({
   };
 
   const handleResetSession = () => {
+    // Show confirmation if there's anything to reset
+    if (sessionItems.length > 0 || sessionTimer.time > 0 || practiceNotes || recordings.length > 0) {
+      setShowResetConfirm(true);
+    }
+  };
+
+  const confirmResetSession = () => {
+    // Reset local state
     sessionTimer.reset();
     itemTimer.reset();
+    setPracticeNotes('');
+    setCurrentItemIndex(0);
     setSessionStarted(false);
+    setShowNotes(false);
+    // Reset parent state (queue, recordings, persisted time)
+    if (onResetSession) {
+      onResetSession();
+    }
+    setShowResetConfirm(false);
   };
 
   // Filter recordings for current item using sessionInstanceId
@@ -643,6 +662,17 @@ export const PracticeSession = forwardRef(function PracticeSession({
           </div>
         </div>
       )}
+
+      {/* Reset Session Confirmation */}
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={confirmResetSession}
+        title="Reset Session"
+        message="This will clear the timer, session queue, notes, and recordings. Are you sure?"
+        confirmText="Reset"
+        variant="warning"
+      />
     </div>
   );
 });

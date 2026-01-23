@@ -6,12 +6,12 @@ import { Navigation } from './components/Navigation';
 import { PracticeItemsModal } from './components/PracticeItemsModal';
 import { PracticeSession } from './components/PracticeSession';
 import { History } from './components/History';
-import { Statistics } from './components/Statistics';
+import { Stats } from './components/Stats';
 import { ItemsManager } from './components/ItemsManager';
 import { ThemeToggle } from './components/ThemeToggle';
 import { StorageSetup } from './components/StorageSetup';
 import { Settings } from './components/Settings';
-import { Reports } from './components/Reports';
+import { WelcomeModal } from './components/WelcomeModal';
 import { useToast } from './components/Toast';
 
 function App() {
@@ -27,7 +27,11 @@ function App() {
   const [sessionTotalTime, setSessionTotalTime] = useFileStorage('sessionTotalTime', 0);
   const [userTags, setUserTags] = useFileStorage('userTags', []);
   const [colorTheme, setColorTheme] = useFileStorage('colorTheme', 'violet');
+  const [hasSeenWelcome, setHasSeenWelcome] = useFileStorage('hasSeenWelcome', false);
   const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
+
+  // Show welcome modal for new users (no items, no sessions, hasn't dismissed)
+  const showWelcome = !hasSeenWelcome && practiceItems.length === 0 && sessions.length === 0;
 
   const practiceSessionRef = useRef(null);
 
@@ -112,8 +116,40 @@ function App() {
     setSessionTotalTime(0);
   };
 
+  const handleResetPracticeSession = () => {
+    setSessionItems([]);
+    setRecordings([]);
+    setSessionTotalTime(0);
+  };
+
   const handleDeleteSession = (sessionId) => {
     setSessions(sessions.filter((s) => s.id !== sessionId));
+  };
+
+  const handleCopySessionToQueue = (session) => {
+    // Find the actual practice items for each session item
+    const itemsToAdd = session.items
+      .map(sessionItem => {
+        // First try to find in active items
+        const activeItem = practiceItems.find(p => p.id === sessionItem.id);
+        if (activeItem) return activeItem;
+        // Fall back to archived items (user might want to practice archived items)
+        const archivedItem = archivedItems.find(a => a.id === sessionItem.id);
+        if (archivedItem) return archivedItem;
+        // Item was deleted - create a basic item from session data
+        return { id: sessionItem.id, name: sessionItem.name };
+      })
+      .filter(Boolean);
+
+    // Add each item to the session queue
+    const newSessionItems = itemsToAdd.map(item => ({
+      ...item,
+      sessionInstanceId: `${item.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      itemTime: 0,
+    }));
+
+    setSessionItems(prev => [...prev, ...newSessionItems]);
+    addToast(`Added ${itemsToAdd.length} item${itemsToAdd.length !== 1 ? 's' : ''} to session`);
   };
 
   const handleDeleteSessionsByDateRange = (startDate, endDate) => {
@@ -159,8 +195,25 @@ function App() {
     setUserTags(data.userTags);
   };
 
+  const handleWelcomeGetStarted = () => {
+    setHasSeenWelcome(true);
+    setIsItemsModalOpen(true);
+  };
+
+  const handleWelcomeDismiss = () => {
+    setHasSeenWelcome(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      {/* Welcome modal for new users */}
+      {showWelcome && (
+        <WelcomeModal
+          onGetStarted={handleWelcomeGetStarted}
+          onDismiss={handleWelcomeDismiss}
+        />
+      )}
+
       <header className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl">
@@ -201,6 +254,7 @@ function App() {
               onReorderSession={handleReorderSession}
               onUpdateSessionItemTime={handleUpdateSessionItemTime}
               onSaveSession={handleSaveSession}
+              onResetSession={handleResetPracticeSession}
               recordings={recordings}
               onSaveRecording={handleSaveRecording}
               onDeleteRecording={handleDeleteRecording}
@@ -227,19 +281,19 @@ function App() {
         )}
 
         {currentView === 'history' && (
-          <History sessions={sessions} onDeleteSession={handleDeleteSession} />
-        )}
-
-        {currentView === 'stats' && (
-          <Statistics
+          <History
             sessions={sessions}
-            onDeleteSessionsByDateRange={handleDeleteSessionsByDateRange}
-            onClearAllSessions={handleClearAllSessions}
+            onDeleteSession={handleDeleteSession}
+            onCopyToSession={handleCopySessionToQueue}
           />
         )}
 
-        {currentView === 'reports' && (
-          <Reports sessions={sessions} />
+        {currentView === 'stats' && (
+          <Stats
+            sessions={sessions}
+            practiceItems={practiceItems}
+            userTags={userTags}
+          />
         )}
 
         {currentView === 'settings' && (
@@ -252,6 +306,8 @@ function App() {
             onResetStorage={isTauri ? resetStorage : null}
             colorTheme={colorTheme}
             onColorThemeChange={setColorTheme}
+            onDeleteSessionsByDateRange={handleDeleteSessionsByDateRange}
+            onClearAllSessions={handleClearAllSessions}
           />
         )}
       </main>

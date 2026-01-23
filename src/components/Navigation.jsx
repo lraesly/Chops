@@ -1,4 +1,4 @@
-import { Music, History, BarChart3, Library, Calendar, Settings } from 'lucide-react';
+import { Music, History, BarChart3, Library, Settings } from 'lucide-react';
 
 export function Navigation({ currentView, onViewChange }) {
   const tabs = [
@@ -6,7 +6,6 @@ export function Navigation({ currentView, onViewChange }) {
     { id: 'items', label: 'Items', icon: Library },
     { id: 'history', label: 'History', icon: History },
     { id: 'stats', label: 'Stats', icon: BarChart3 },
-    { id: 'reports', label: 'Reports', icon: Calendar },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
