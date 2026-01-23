@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { FolderOpen, Download, Upload, HardDrive, Check, AlertCircle, RotateCcw, Palette, Trash2, AlertTriangle } from 'lucide-react';
+import { FolderOpen, Download, Upload, HardDrive, Check, AlertCircle, RotateCcw, Palette, Trash2, AlertTriangle, Tag, X } from 'lucide-react';
 import {
   getStoragePath,
   setStoragePath,
@@ -30,12 +30,15 @@ export function Settings({
   onColorThemeChange,
   onDeleteSessionsByDateRange,
   onClearAllSessions,
+  onDeleteTag,
+  onResetAllData,
 }) {
   const [currentPath, setCurrentPath] = useState(getStoragePath());
   const [message, setMessage] = useState(null);
   const [isChangingLocation, setIsChangingLocation] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showResetAllModal, setShowResetAllModal] = useState(false);
   const [deleteType, setDeleteType] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -420,6 +423,42 @@ export function Settings({
         </div>
       </div>
 
+      {/* Tag Management */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 md:p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg">
+            <Tag size={20} className="text-primary-600 dark:text-primary-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800 dark:text-white">Manage Tags</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Remove tags from the suggestion list
+            </p>
+          </div>
+        </div>
+        {userTags.length === 0 ? (
+          <p className="text-gray-400 dark:text-gray-500 text-sm">No tags created yet</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {userTags.map(tag => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-sm"
+              >
+                {tag}
+                <button
+                  onClick={() => onDeleteTag(tag)}
+                  className="ml-1 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                  title="Delete tag"
+                >
+                  <X size={14} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Delete History */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 md:p-6">
         <div className="flex items-center gap-3 mb-4">
@@ -440,6 +479,32 @@ export function Settings({
         >
           <Trash2 size={18} />
           Delete History...
+        </button>
+      </div>
+
+      {/* Reset All Data */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 md:p-6 border-2 border-red-200 dark:border-red-900">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg">
+            <AlertTriangle size={20} className="text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800 dark:text-white">Reset All Data</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Delete everything and start fresh
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          This will permanently delete all practice items, archived items, session history, and tags.
+        </p>
+        <button
+          onClick={() => setShowResetAllModal(true)}
+          disabled={practiceItems.length === 0 && archivedItems.length === 0 && sessions.length === 0 && userTags.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <Trash2 size={18} />
+          Reset All Data...
         </button>
       </div>
 
@@ -527,6 +592,59 @@ export function Settings({
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Delete {getSessionsToDelete() > 0 ? `(${getSessionsToDelete()})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset All Data Modal */}
+      {showResetAllModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <AlertTriangle className="text-red-600 dark:text-red-400" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Reset All Data</h3>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <p className="text-gray-600 dark:text-gray-300">
+                This will permanently delete:
+              </p>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 ml-4">
+                <li>• {practiceItems.length} practice item{practiceItems.length !== 1 ? 's' : ''}</li>
+                <li>• {archivedItems.length} archived item{archivedItems.length !== 1 ? 's' : ''}</li>
+                <li>• {sessions.length} session{sessions.length !== 1 ? 's' : ''}</li>
+                <li>• {userTags.length} tag{userTags.length !== 1 ? 's' : ''}</li>
+              </ul>
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                  This action cannot be undone.
+                </p>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                  Consider exporting a backup first.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetAllModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onResetAllData();
+                  setShowResetAllModal(false);
+                  showMessage('All data has been reset');
+                }}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+              >
+                Reset Everything
               </button>
             </div>
           </div>

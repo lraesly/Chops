@@ -195,6 +195,20 @@ function App() {
     setUserTags(data.userTags);
   };
 
+  const handleDeleteTag = (tagToDelete) => {
+    setUserTags(prev => prev.filter(tag => tag !== tagToDelete));
+  };
+
+  const handleResetAllData = () => {
+    setPracticeItems([]);
+    setArchivedItems([]);
+    setSessions([]);
+    setUserTags([]);
+    setSessionItems([]);
+    setRecordings([]);
+    setSessionTotalTime(0);
+  };
+
   const handleWelcomeGetStarted = () => {
     setHasSeenWelcome(true);
     setIsItemsModalOpen(true);
@@ -308,6 +322,8 @@ function App() {
             onColorThemeChange={setColorTheme}
             onDeleteSessionsByDateRange={handleDeleteSessionsByDateRange}
             onClearAllSessions={handleClearAllSessions}
+            onDeleteTag={handleDeleteTag}
+            onResetAllData={handleResetAllData}
           />
         )}
       </main>

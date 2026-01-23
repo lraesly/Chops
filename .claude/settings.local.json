@@ -13,7 +13,8 @@
       "Bash(gh auth status:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run tauri:*)"
     ]
   }
 }
