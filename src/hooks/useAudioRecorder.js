@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 const MIME_TYPES = [
   'audio/webm;codecs=opus',
@@ -23,23 +23,57 @@ export function useAudioRecorder() {
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [mimeType, setMimeType] = useState(null);
+  const [permissionState, setPermissionState] = useState('prompt');
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const streamRef = useRef(null);
+
+  // Check and monitor microphone permission status
+  useEffect(() => {
+    let permissionStatus = null;
+
+    const checkPermission = async () => {
+      try {
+        permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+        setPermissionState(permissionStatus.state);
+
+        permissionStatus.onchange = () => {
+          setPermissionState(permissionStatus.state);
+        };
+      } catch (error) {
+        // Permissions API not supported, assume we need to request
+        console.log('Permissions API not available, will request on first use');
+      }
+    };
+
+    checkPermission();
+
+    return () => {
+      if (permissionStatus) {
+        permissionStatus.onchange = null;
+      }
+    };
+  }, []);
 
   const startRecording = useCallback(async () => {
+    // If permission was denied, show specific message
+    if (permissionState === 'denied') {
+      alert('Microphone access was denied. Please enable it in System Settings > Privacy & Security > Microphone.');
+      return;
+    }
+
     try {
-      // Disable voice processing for better music quality
-      // Using 'exact' to force browser to honor these settings
       const audioConstraints = {
         audio: {
-          echoCancellation: { exact: false },
-          noiseSuppression: { exact: false },
-          autoGainControl: { exact: false },
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
           sampleRate: { ideal: 96000 },
           channelCount: { ideal: 2 },
         }
       };
       const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
+      streamRef.current = stream;
 
       // Log actual settings for debugging
       const track = stream.getAudioTracks()[0];
@@ -80,9 +114,15 @@ export function useAudioRecorder() {
       setIsRecording(true);
     } catch (error) {
       console.error('Error starting recording:', error);
-      alert('Could not access microphone. Please check permissions.');
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        alert('Microphone access was denied. Please enable it in System Settings > Privacy & Security > Microphone.');
+      } else if (error.name === 'NotFoundError') {
+        alert('No microphone found. Please connect a microphone and try again.');
+      } else {
+        alert('Could not access microphone: ' + error.message);
+      }
     }
-  }, []);
+  }, [permissionState]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -113,6 +153,7 @@ export function useAudioRecorder() {
     audioBlob,
     audioUrl,
     mimeType,
+    permissionState,
     startRecording,
     stopRecording,
     toggleRecording,
