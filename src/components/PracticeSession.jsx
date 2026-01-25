@@ -60,6 +60,8 @@ function useItemTimer() {
 
 export const PracticeSession = forwardRef(function PracticeSession({
   sessionItems,
+  practiceItems = [],
+  archivedItems = [],
   onRemoveFromSession,
   onReorderSession,
   onUpdateSessionItemTime,
@@ -84,7 +86,22 @@ export const PracticeSession = forwardRef(function PracticeSession({
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const prevItemIndexRef = useRef(null);
 
-  const currentItem = sessionItems[currentItemIndex];
+  // Helper to get the current/full item data by looking up from practiceItems or archivedItems
+  // This ensures we always show the latest item data (name, attachments, etc.)
+  const getEnrichedItem = (sessionItem) => {
+    if (!sessionItem) return null;
+    const sourceItem = practiceItems.find(p => p.id === sessionItem.id)
+      || archivedItems.find(a => a.id === sessionItem.id);
+    if (sourceItem) {
+      // Merge source item data with session-specific data (sessionInstanceId, itemTime)
+      return { ...sourceItem, sessionInstanceId: sessionItem.sessionInstanceId, itemTime: sessionItem.itemTime };
+    }
+    // Fall back to session item data if original was deleted
+    return sessionItem;
+  };
+
+  const currentSessionItem = sessionItems[currentItemIndex];
+  const currentItem = getEnrichedItem(currentSessionItem);
   const shouldAutoStartRef = useRef(false);
 
   // Expose toggle function to parent via ref
@@ -484,85 +501,88 @@ export const PracticeSession = forwardRef(function PracticeSession({
           </button>
         ) : (
           <div className="space-y-2">
-            {sessionItems.map((item, index) => (
-              <div
-                key={item.sessionInstanceId}
-                className={`flex items-center gap-2 p-3 rounded-xl transition-all ${
-                  index === currentItemIndex
-                    ? 'bg-primary-100 dark:bg-primary-900/40 border-2 border-primary-400 dark:border-primary-500'
-                    : 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700'
-                }`}
-              >
-                <div className="flex flex-col">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveItem(index, -1);
-                    }}
-                    disabled={index === 0}
-                    className="p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30"
-                  >
-                    <ChevronUp size={14} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveItem(index, 1);
-                    }}
-                    disabled={index === sessionItems.length - 1}
-                    className="p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30"
-                  >
-                    <ChevronDown size={14} />
-                  </button>
-                </div>
-
-                {/* Play/Pause button for this item */}
-                <button
-                  onClick={() => handleStartItem(index)}
-                  disabled={!sessionTimer.isRunning && index === currentItemIndex && itemTimer.isRunning}
-                  className={`p-2 rounded-lg transition-colors ${
-                    index === currentItemIndex && itemTimer.isRunning
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/60'
+            {sessionItems.map((sessionItem, index) => {
+              const item = getEnrichedItem(sessionItem);
+              return (
+                <div
+                  key={sessionItem.sessionInstanceId}
+                  className={`flex items-center gap-2 p-3 rounded-xl transition-all ${
+                    index === currentItemIndex
+                      ? 'bg-primary-100 dark:bg-primary-900/40 border-2 border-primary-400 dark:border-primary-500'
+                      : 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700'
                   }`}
-                  title={index === currentItemIndex && itemTimer.isRunning ? 'Currently practicing' : 'Start practicing this item'}
                 >
-                  {index === currentItemIndex && itemTimer.isRunning ? (
-                    <Timer size={18} className="animate-pulse" />
-                  ) : (
-                    <Play size={18} />
-                  )}
-                </button>
+                  <div className="flex flex-col">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveItem(index, -1);
+                      }}
+                      disabled={index === 0}
+                      className="p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30"
+                    >
+                      <ChevronUp size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveItem(index, 1);
+                      }}
+                      disabled={index === sessionItems.length - 1}
+                      className="p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30"
+                    >
+                      <ChevronDown size={14} />
+                    </button>
+                  </div>
 
-                <div className="flex-1 flex items-center gap-2">
-                  <span className="text-gray-700 dark:text-gray-200">{item.name}</span>
-                  {index === currentItemIndex && itemTimer.isRunning && (
-                    <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-primary-600 text-white rounded animate-pulse">
-                      Now
-                    </span>
-                  )}
+                  {/* Play/Pause button for this item */}
+                  <button
+                    onClick={() => handleStartItem(index)}
+                    disabled={!sessionTimer.isRunning && index === currentItemIndex && itemTimer.isRunning}
+                    className={`p-2 rounded-lg transition-colors ${
+                      index === currentItemIndex && itemTimer.isRunning
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/60'
+                    }`}
+                    title={index === currentItemIndex && itemTimer.isRunning ? 'Currently practicing' : 'Start practicing this item'}
+                  >
+                    {index === currentItemIndex && itemTimer.isRunning ? (
+                      <Timer size={18} className="animate-pulse" />
+                    ) : (
+                      <Play size={18} />
+                    )}
+                  </button>
+
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-gray-700 dark:text-gray-200">{item.name}</span>
+                    {index === currentItemIndex && itemTimer.isRunning && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-primary-600 text-white rounded animate-pulse">
+                        Now
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Show item time */}
+                  <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <Timer size={14} />
+                    {formatTime(index === currentItemIndex ? itemTimer.time : (sessionItem.itemTime || 0))}
+                  </span>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveFromSession(index);
+                      if (currentItemIndex >= sessionItems.length - 1) {
+                        setCurrentItemIndex(Math.max(0, sessionItems.length - 2));
+                      }
+                    }}
+                    className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-
-                {/* Show item time */}
-                <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                  <Timer size={14} />
-                  {formatTime(index === currentItemIndex ? itemTimer.time : (item.itemTime || 0))}
-                </span>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveFromSession(index);
-                    if (currentItemIndex >= sessionItems.length - 1) {
-                      setCurrentItemIndex(Math.max(0, sessionItems.length - 2));
-                    }
-                  }}
-                  className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -264,6 +264,8 @@ function App() {
             <PracticeSession
               ref={practiceSessionRef}
               sessionItems={sessionItems}
+              practiceItems={practiceItems}
+              archivedItems={archivedItems}
               onRemoveFromSession={handleRemoveFromSession}
               onReorderSession={handleReorderSession}
               onUpdateSessionItemTime={handleUpdateSessionItemTime}
