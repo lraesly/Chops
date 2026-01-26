@@ -7,6 +7,7 @@ export function useMetronome() {
   const nextNoteTimeRef = useRef(0);
   const timerIdRef = useRef(null);
   const isPlayingRef = useRef(false); // Track playing state for device change handler
+  const schedulerRef = useRef(null); // Track current scheduler for device change handler
 
   // Create or recreate the AudioContext
   const ensureAudioContext = useCallback(() => {
@@ -62,6 +63,9 @@ export function useMetronome() {
     timerIdRef.current = setTimeout(scheduler, 25);
   }, [bpm, createClick]);
 
+  // Keep schedulerRef updated so device change handler always uses latest scheduler
+  schedulerRef.current = scheduler;
+
   const start = useCallback(() => {
     if (!audioContextRef.current) {
       ensureAudioContext();
@@ -115,7 +119,8 @@ export function useMetronome() {
           audioContextRef.current.resume();
         }
         nextNoteTimeRef.current = audioContextRef.current.currentTime;
-        scheduler();
+        // Use ref to always get the latest scheduler (with current bpm)
+        schedulerRef.current();
       }
     };
 
@@ -139,14 +144,16 @@ export function useMetronome() {
         navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
       }
     };
-  }, [ensureAudioContext, scheduler]);
+  }, [ensureAudioContext]); // Removed scheduler - use schedulerRef instead to avoid cleanup on bpm change
 
+  // Restart metronome when BPM changes (if currently playing)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isPlaying) {
       stop();
       start();
     }
-  }, [bpm]);
+  }, [bpm]); // Intentionally only depends on bpm - we want to restart only when tempo changes
 
   return {
     bpm,

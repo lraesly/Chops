@@ -1,11 +1,12 @@
 import { FileText, Link as LinkIcon, ExternalLink, Trash2 } from 'lucide-react';
+import { open } from '@tauri-apps/plugin-shell';
 
 export function AttachmentList({ attachments = [], onDelete, compact = false }) {
   if (attachments.length === 0) return null;
 
-  const handleOpen = (attachment) => {
+  const handleOpen = async (attachment) => {
     if (attachment.type === 'link') {
-      window.open(attachment.url, '_blank', 'noopener,noreferrer');
+      await open(attachment.url);
     } else if (attachment.type === 'pdf') {
       // Open base64 PDF in new tab
       const pdfWindow = window.open('');

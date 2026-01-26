@@ -6,6 +6,7 @@ import { RecordButton } from './RecordButton';
 import { RecordingsList } from './AudioRecorder';
 import { AttachmentList } from './AttachmentList';
 import { RichTextEditor } from './RichTextEditor';
+import { open } from '@tauri-apps/plugin-shell';
 import { ConfirmDialog } from './ConfirmDialog';
 
 function useItemTimer() {
@@ -424,9 +425,9 @@ export const PracticeSession = forwardRef(function PracticeSession({
                   {currentItem.attachments.map((attachment) => (
                     <button
                       key={attachment.id}
-                      onClick={() => {
+                      onClick={async () => {
                         if (attachment.type === 'link') {
-                          window.open(attachment.url, '_blank', 'noopener,noreferrer');
+                          await open(attachment.url);
                         } else if (attachment.type === 'pdf') {
                           const pdfWindow = window.open('');
                           pdfWindow.document.write(
