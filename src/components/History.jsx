@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Calendar, Clock, Music, Trash2, ChevronDown, ChevronUp, Play, Pause, FileText, Copy } from 'lucide-react';
+import { Calendar, Clock, Music, Trash2, ChevronDown, ChevronUp, Play, Pause, FileText, Copy, Download } from 'lucide-react';
 import { formatTime } from '../hooks/useTimer';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -39,6 +39,99 @@ export function History({ sessions, onDeleteSession, onCopyToSession }) {
       setPlayingRecording(recording.id);
     }
   };
+
+  const handleExportRecording = async (recording) => {
+    try {
+      // Convert base64 to blob
+      const base64Data = recording.audio;
+      const parts = base64Data.split(',');
+      const byteCharacters = atob(parts[1]);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: recording.mimeType || 'audio/webm' });
+
+      // Decode audio using AudioContext
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      // Convert to WAV
+      const wavBlob = audioBufferToWav(audioBuffer);
+
+      // Download
+      const url = URL.createObjectURL(wavBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${recording.name || 'recording'}.wav`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      audioContext.close();
+    } catch (error) {
+      console.error('Error exporting recording:', error);
+      alert('Failed to export recording. Please try again.');
+    }
+  };
+
+  // Convert AudioBuffer to WAV blob
+  function audioBufferToWav(audioBuffer) {
+    const numChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+
+    const samples = audioBuffer.length;
+    const dataSize = samples * blockAlign;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    // WAV header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // fmt chunk size
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Write audio data
+    const channelData = [];
+    for (let i = 0; i < numChannels; i++) {
+      channelData.push(audioBuffer.getChannelData(i));
+    }
+
+    let offset = 44;
+    for (let i = 0; i < samples; i++) {
+      for (let channel = 0; channel < numChannels; channel++) {
+        const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        view.setInt16(offset, intSample, true);
+        offset += 2;
+      }
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
 
   const sortedSessions = [...sessions].sort(
     (a, b) => new Date(b.date) - new Date(a.date)
@@ -205,9 +298,16 @@ export function History({ sessions, onDeleteSession, onCopyToSession }) {
                                         <Play size={14} />
                                       )}
                                     </button>
-                                    <span className="text-gray-700 dark:text-gray-200 text-sm">
+                                    <span className="flex-1 text-gray-700 dark:text-gray-200 text-sm">
                                       {recording.name}
                                     </span>
+                                    <button
+                                      onClick={() => handleExportRecording(recording)}
+                                      className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                                      title="Export recording"
+                                    >
+                                      <Download size={14} />
+                                    </button>
                                   </div>
                                 ))}
                               </div>

@@ -27,6 +27,7 @@ export function useAudioRecorder() {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const streamRef = useRef(null);
+  const audioContextRef = useRef(null);
 
   // Check and monitor microphone permission status
   useEffect(() => {
@@ -68,28 +69,43 @@ export function useAudioRecorder() {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
-          sampleRate: { ideal: 96000 },
-          channelCount: { ideal: 2 },
+          sampleRate: { ideal: 48000 },
         }
       };
       const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
       streamRef.current = stream;
 
-      // Log actual settings for debugging
-      const track = stream.getAudioTracks()[0];
-      const settings = track.getSettings();
-      console.log('Audio track settings:', settings);
-      console.log('Audio constraints supported:', track.getCapabilities?.() || 'N/A');
+      // Use AudioContext to explicitly mix to mono
+      // This ensures centered playback regardless of source channel configuration
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioContext;
+
+      const source = audioContext.createMediaStreamSource(stream);
+
+      // Create a mono destination (1 channel)
+      const destination = audioContext.createMediaStreamDestination();
+
+      // Create a channel merger to mix all input channels to mono
+      // We'll use a gain node connected to a single-channel destination
+      const splitter = audioContext.createChannelSplitter(2);
+      const merger = audioContext.createChannelMerger(1);
+
+      source.connect(splitter);
+      // Mix both channels (or just left if mono) into a single output
+      splitter.connect(merger, 0, 0); // Left channel to output
+      splitter.connect(merger, 1, 0); // Right channel to same output (mixes)
+      merger.connect(destination);
+
+      // Use the mono stream for recording
+      const monoStream = destination.stream;
 
       const supportedMimeType = getSupportedMimeType();
-      console.log('Using MIME type:', supportedMimeType);
 
       const options = {
         ...(supportedMimeType && { mimeType: supportedMimeType }),
         audioBitsPerSecond: 320000, // 320 kbps for better quality
       };
-      mediaRecorderRef.current = new MediaRecorder(stream, options);
-      console.log('MediaRecorder audioBitsPerSecond:', mediaRecorderRef.current.audioBitsPerSecond);
+      mediaRecorderRef.current = new MediaRecorder(monoStream, options);
 
       const actualMimeType = mediaRecorderRef.current.mimeType || 'audio/webm';
       setMimeType(actualMimeType);
@@ -107,7 +123,12 @@ export function useAudioRecorder() {
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
 
+        // Clean up
         stream.getTracks().forEach(track => track.stop());
+        if (audioContextRef.current) {
+          audioContextRef.current.close();
+          audioContextRef.current = null;
+        }
       };
 
       mediaRecorderRef.current.start(1000);
@@ -128,6 +149,10 @@ export function useAudioRecorder() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+    }
+    // Clean up original stream tracks
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
     }
   }, [isRecording]);
 

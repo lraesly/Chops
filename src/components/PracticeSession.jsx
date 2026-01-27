@@ -82,7 +82,8 @@ export const PracticeSession = forwardRef(function PracticeSession({
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [practiceNotes, setPracticeNotes] = useState('');
   const [showNotes, setShowNotes] = useState(false);
-  const [sessionStarted, setSessionStarted] = useState(false);
+  // Initialize sessionStarted from props to avoid render gap when switching tabs
+  const [sessionStarted, setSessionStarted] = useState(() => initialSessionTime > 0 || sessionItems.length > 0);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [savedSessionInfo, setSavedSessionInfo] = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -163,10 +164,6 @@ export const PracticeSession = forwardRef(function PracticeSession({
   useEffect(() => {
     if (initialSessionTime > 0) {
       sessionTimer.setInitialTime(initialSessionTime);
-      setSessionStarted(true);
-    } else if (sessionItems.length > 0) {
-      // If there are persisted items but no time, still mark session as started
-      setSessionStarted(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
