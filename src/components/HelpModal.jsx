@@ -10,8 +10,16 @@ const shortcuts = [
     items: [
       { keys: ['Space'], description: 'Start/Pause timer' },
       { keys: [cmdKey, 'S'], description: 'Save session' },
-      { keys: ['M'], description: 'Open metronome' },
       { keys: ['R'], description: 'Start/Stop recording (when timer running)' },
+    ],
+  },
+  {
+    category: 'Metronome',
+    items: [
+      { keys: ['M'], description: 'Open/Close metronome' },
+      { keys: ['K'], description: 'Start/Stop metronome' },
+      { keys: ['['], description: 'Decrease tempo' },
+      { keys: [']'], description: 'Increase tempo' },
     ],
   },
   {

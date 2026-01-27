@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { ChopsIcon } from './components/ChopsIcon';
 import { useFileStorage, useStorageSetup } from './hooks/useFileStorage';
 import { useKeyboardShortcuts, useSpacebarToggle } from './hooks/useKeyboardShortcuts';
@@ -34,12 +36,32 @@ function App() {
   const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
 
+  const practiceSessionRef = useRef(null);
+
+  // Metronome state (lifted to App for keyboard shortcut access)
+  const metronome = useMetronome();
+
   // Listen for menu events from Tauri
   useEffect(() => {
     let unlisten;
     listen('menu-action', (event) => {
-      if (event.payload === 'help_shortcuts') {
+      const action = event.payload;
+      if (action === 'help_shortcuts') {
         setShowHelpModal(true);
+      } else if (action === 'metronome_toggle' && currentView === 'practice') {
+        practiceSessionRef.current?.toggleMetronomePopup?.();
+      } else if (action === 'metronome_play' && currentView === 'practice') {
+        metronome.toggle();
+      } else if (action === 'metronome_tempo_down' && currentView === 'practice') {
+        const currentBpm = metronome.bpm;
+        const presets = [80, 100, 120, 140, 160, 180];
+        const prevPreset = [...presets].reverse().find(p => p < currentBpm);
+        if (prevPreset) metronome.setBpm(prevPreset);
+      } else if (action === 'metronome_tempo_up' && currentView === 'practice') {
+        const currentBpm = metronome.bpm;
+        const presets = [80, 100, 120, 140, 160, 180];
+        const nextPreset = presets.find(p => p > currentBpm);
+        if (nextPreset) metronome.setBpm(nextPreset);
       }
     }).then((unlistenFn) => {
       unlisten = unlistenFn;
@@ -48,15 +70,50 @@ function App() {
     return () => {
       if (unlisten) unlisten();
     };
-  }, []);
+  }, [currentView, metronome]);
+
+  // Quit protection: prompt to save when there's an active session
+  useEffect(() => {
+    let unlistenClose;
+
+    const setupCloseHandler = async () => {
+      try {
+        const appWindow = getCurrentWindow();
+        unlistenClose = await appWindow.onCloseRequested(async (event) => {
+          // Check if there's an active session (timer has been started and has time)
+          if (sessionTotalTime > 0) {
+            // Prevent the window from closing immediately
+            event.preventDefault();
+
+            // Show confirmation dialog
+            const confirmed = await confirm(
+              'You have an unsaved practice session. Are you sure you want to quit?',
+              { title: 'Unsaved Session', kind: 'warning' }
+            );
+
+            if (confirmed) {
+              // User confirmed, force close
+              await appWindow.destroy();
+            }
+            // If not confirmed, do nothing (window stays open)
+          }
+          // If no active session, allow normal close
+        });
+      } catch (e) {
+        // Not running in Tauri, ignore
+        console.log('Close handler not available:', e);
+      }
+    };
+
+    setupCloseHandler();
+
+    return () => {
+      if (unlistenClose) unlistenClose();
+    };
+  }, [sessionTotalTime]);
 
   // Show welcome modal for new users (no items, no sessions, hasn't dismissed)
   const showWelcome = !hasSeenWelcome && practiceItems.length === 0 && sessions.length === 0;
-
-  const practiceSessionRef = useRef(null);
-
-  // Metronome state (lifted to App for keyboard shortcut access)
-  const metronome = useMetronome();
 
   // Apply color theme to document
   useEffect(() => {
@@ -71,6 +128,27 @@ function App() {
     },
     currentView === 'practice'
   );
+
+  // Tempo presets for metronome keyboard shortcuts
+  const tempoPresets = [80, 100, 120, 140, 160, 180];
+
+  // Helper function to snap tempo to nearest preset in a direction
+  const adjustTempoToPreset = (direction) => {
+    const currentBpm = metronome.bpm;
+    if (direction > 0) {
+      // Find next higher preset
+      const nextPreset = tempoPresets.find(p => p > currentBpm);
+      if (nextPreset) {
+        metronome.setBpm(nextPreset);
+      }
+    } else {
+      // Find next lower preset
+      const prevPreset = [...tempoPresets].reverse().find(p => p < currentBpm);
+      if (prevPreset) {
+        metronome.setBpm(prevPreset);
+      }
+    }
+  };
 
   // Keyboard shortcuts for navigation and actions
   const shortcuts = useMemo(() => [
@@ -96,6 +174,33 @@ function App() {
       handler: () => {
         if (currentView === 'practice') {
           practiceSessionRef.current?.toggleMetronomePopup?.();
+        }
+      },
+    },
+    // Metronome play/stop: K (only when in practice view)
+    {
+      key: 'k',
+      handler: () => {
+        if (currentView === 'practice') {
+          metronome.toggle();
+        }
+      },
+    },
+    // Metronome tempo down: [ (only when in practice view)
+    {
+      key: '[',
+      handler: () => {
+        if (currentView === 'practice') {
+          adjustTempoToPreset(-1);
+        }
+      },
+    },
+    // Metronome tempo up: ] (only when in practice view)
+    {
+      key: ']',
+      handler: () => {
+        if (currentView === 'practice') {
+          adjustTempoToPreset(1);
         }
       },
     },

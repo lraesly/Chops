@@ -1,5 +1,5 @@
 import { useState, forwardRef, useImperativeHandle } from 'react';
-import { Volume2, VolumeX, X } from 'lucide-react';
+import { Play, Pause, X } from 'lucide-react';
 import { useMetronome } from '../hooks/useMetronome';
 
 // Metronome icon SVG
@@ -71,11 +71,9 @@ export const MetronomePopup = forwardRef(function MetronomePopup({ metronome: ex
         title={isPlaying ? 'Stop metronome' : 'Open metronome'}
       >
         <MetronomeIcon size={24} />
-        {isPlaying && (
-          <span className="absolute -bottom-1 -right-1 text-xs bg-primary-600 text-white px-1.5 rounded-full">
-            {bpm}
-          </span>
-        )}
+        <span className="absolute -bottom-1 -right-1 text-xs bg-primary-600 text-white px-1.5 rounded-full">
+          {bpm}
+        </span>
       </button>
 
       {/* Popup */}
@@ -92,7 +90,7 @@ export const MetronomePopup = forwardRef(function MetronomePopup({ metronome: ex
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                {isPlaying ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                {isPlaying ? <Pause size={18} /> : <Play size={18} />}
               </button>
               <button
                 onClick={handleClose}
@@ -119,7 +117,7 @@ export const MetronomePopup = forwardRef(function MetronomePopup({ metronome: ex
             />
 
             <div className="grid grid-cols-6 gap-1">
-              {[60, 80, 100, 120, 140, 160].map((preset) => (
+              {[80, 100, 120, 140, 160, 180].map((preset) => (
                 <button
                   key={preset}
                   onClick={() => setBpm(preset)}
