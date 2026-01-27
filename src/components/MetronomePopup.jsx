@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
 import { Volume2, VolumeX, X } from 'lucide-react';
 import { useMetronome } from '../hooks/useMetronome';
 
@@ -23,9 +23,19 @@ function MetronomeIcon({ size = 24, className = '' }) {
   );
 }
 
-export function MetronomePopup() {
-  const { bpm, setBpm, isPlaying, toggle, stop } = useMetronome();
+export const MetronomePopup = forwardRef(function MetronomePopup({ metronome: externalMetronome } = {}, ref) {
+  // Use external metronome state if provided, otherwise use internal
+  const internalMetronome = useMetronome();
+  const { bpm, setBpm, isPlaying, toggle, stop } = externalMetronome || internalMetronome;
   const [isOpen, setIsOpen] = useState(false);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    toggle: handleIconClick,  // Same behavior as clicking the icon
+    open: () => setIsOpen(true),
+    close: handleClose,
+    isOpen,
+  }), [isOpen, isPlaying]);
 
   const handleIconClick = () => {
     if (isOpen && isPlaying) {
@@ -128,4 +138,4 @@ export function MetronomePopup() {
       )}
     </>
   );
-}
+});

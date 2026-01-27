@@ -75,6 +75,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
   onOpenItemsPicker,
   initialSessionTime = 0,
   onSessionTimeChange,
+  metronome,
 }, ref) {
   const sessionTimer = useTimer();
   const itemTimer = useItemTimer();
@@ -86,6 +87,8 @@ export const PracticeSession = forwardRef(function PracticeSession({
   const [savedSessionInfo, setSavedSessionInfo] = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const prevItemIndexRef = useRef(null);
+  const recordButtonRef = useRef(null);
+  const metronomePopupRef = useRef(null);
 
   // Helper to get the current/full item data by looking up from practiceItems or archivedItems
   // This ensures we always show the latest item data (name, attachments, etc.)
@@ -105,7 +108,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
   const currentItem = getEnrichedItem(currentSessionItem);
   const shouldAutoStartRef = useRef(false);
 
-  // Expose toggle function to parent via ref
+  // Expose functions to parent via ref
   useImperativeHandle(ref, () => ({
     toggleTimer: () => {
       if (currentItem) {
@@ -113,7 +116,12 @@ export const PracticeSession = forwardRef(function PracticeSession({
       }
     },
     isRunning: sessionTimer.isRunning,
-  }), [currentItem, sessionTimer.isRunning]);
+    saveSession: handleSaveSession,
+    canSave: sessionItems.length > 0 && sessionTimer.time > 0,
+    toggleRecording: () => recordButtonRef.current?.toggle(),
+    isRecording: recordButtonRef.current?.isRecording,
+    toggleMetronomePopup: () => metronomePopupRef.current?.toggle(),
+  }), [currentItem, sessionTimer.isRunning, sessionItems.length, sessionTimer.time]);
 
   // Save item time when switching items (but don't pause session timer)
   useEffect(() => {
@@ -376,12 +384,13 @@ export const PracticeSession = forwardRef(function PracticeSession({
         {/* Tools (Record & Metronome) - Bottom Left */}
         <div className="absolute bottom-4 left-4 flex items-center gap-2">
           <RecordButton
+            ref={recordButtonRef}
             onSaveRecording={onSaveRecording}
             sessionInstanceId={currentItem?.sessionInstanceId}
             disabled={!sessionStarted}
           />
           <div className="relative">
-            <MetronomePopup />
+            <MetronomePopup ref={metronomePopupRef} metronome={metronome} />
           </div>
         </div>
 

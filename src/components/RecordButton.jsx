@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Mic, Square, Play, Pause, Save, Trash2, X } from 'lucide-react';
 import { useAudioRecorder, blobToBase64 } from '../hooks/useAudioRecorder';
 
-export function RecordButton({ onSaveRecording, sessionInstanceId, disabled }) {
+export const RecordButton = forwardRef(function RecordButton({ onSaveRecording, sessionInstanceId, disabled }, ref) {
   const { isRecording, audioUrl, toggleRecording, clearRecording, audioBlob, mimeType } =
     useAudioRecorder();
   const [showModal, setShowModal] = useState(false);
@@ -22,6 +22,12 @@ export function RecordButton({ onSaveRecording, sessionInstanceId, disabled }) {
       toggleRecording();
     }
   };
+
+  // Expose toggle function to parent via ref
+  useImperativeHandle(ref, () => ({
+    toggle: handleToggleRecording,
+    isRecording,
+  }), [disabled, isRecording]);
 
   const handlePlayPause = () => {
     if (audioRef.current) {
@@ -148,4 +154,4 @@ export function RecordButton({ onSaveRecording, sessionInstanceId, disabled }) {
       )}
     </>
   );
-}
+});

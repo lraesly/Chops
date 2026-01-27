@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { ChopsIcon } from './components/ChopsIcon';
 import { useFileStorage, useStorageSetup } from './hooks/useFileStorage';
-import { useSpacebarToggle } from './hooks/useKeyboardShortcuts';
+import { useKeyboardShortcuts, useSpacebarToggle } from './hooks/useKeyboardShortcuts';
+import { useMetronome } from './hooks/useMetronome';
 import { Navigation } from './components/Navigation';
 import { PracticeItemsModal } from './components/PracticeItemsModal';
 import { PracticeSession } from './components/PracticeSession';
@@ -12,6 +14,7 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { StorageSetup } from './components/StorageSetup';
 import { Settings } from './components/Settings';
 import { WelcomeModal } from './components/WelcomeModal';
+import { HelpModal } from './components/HelpModal';
 import { useToast } from './components/Toast';
 
 function App() {
@@ -29,11 +32,31 @@ function App() {
   const [colorTheme, setColorTheme] = useFileStorage('colorTheme', 'violet');
   const [hasSeenWelcome, setHasSeenWelcome] = useFileStorage('hasSeenWelcome', false);
   const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // Listen for menu events from Tauri
+  useEffect(() => {
+    let unlisten;
+    listen('menu-action', (event) => {
+      if (event.payload === 'help_shortcuts') {
+        setShowHelpModal(true);
+      }
+    }).then((unlistenFn) => {
+      unlisten = unlistenFn;
+    });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   // Show welcome modal for new users (no items, no sessions, hasn't dismissed)
   const showWelcome = !hasSeenWelcome && practiceItems.length === 0 && sessions.length === 0;
 
   const practiceSessionRef = useRef(null);
+
+  // Metronome state (lifted to App for keyboard shortcut access)
+  const metronome = useMetronome();
 
   // Apply color theme to document
   useEffect(() => {
@@ -48,6 +71,53 @@ function App() {
     },
     currentView === 'practice'
   );
+
+  // Keyboard shortcuts for navigation and actions
+  const shortcuts = useMemo(() => [
+    // View switching: Cmd/Ctrl + 1-4 and comma
+    { key: '1', ctrl: true, handler: () => setCurrentView('practice') },
+    { key: '2', ctrl: true, handler: () => setCurrentView('items') },
+    { key: '3', ctrl: true, handler: () => setCurrentView('history') },
+    { key: '4', ctrl: true, handler: () => setCurrentView('stats') },
+    { key: ',', ctrl: true, handler: () => setCurrentView('settings') },
+    // Save session: Cmd/Ctrl + S (only when in practice view and can save)
+    {
+      key: 's',
+      ctrl: true,
+      handler: () => {
+        if (currentView === 'practice' && practiceSessionRef.current?.canSave) {
+          practiceSessionRef.current.saveSession();
+        }
+      },
+    },
+    // Metronome popup toggle: M (only when in practice view)
+    {
+      key: 'm',
+      handler: () => {
+        if (currentView === 'practice') {
+          practiceSessionRef.current?.toggleMetronomePopup?.();
+        }
+      },
+    },
+    // Recording toggle: R (only when in practice view)
+    {
+      key: 'r',
+      handler: () => {
+        if (currentView === 'practice') {
+          practiceSessionRef.current?.toggleRecording?.();
+        }
+      },
+    },
+    // Help modal: ? key
+    {
+      key: '?',
+      handler: () => {
+        setShowHelpModal(true);
+      },
+    },
+  ], [currentView, metronome]);
+
+  useKeyboardShortcuts(shortcuts);
 
   // Show storage setup for Tauri if not configured
   if (isTauri && !isLoading && !isConfigured) {
@@ -278,6 +348,7 @@ function App() {
               onOpenItemsPicker={() => setIsItemsModalOpen(true)}
               initialSessionTime={sessionTotalTime}
               onSessionTimeChange={setSessionTotalTime}
+              metronome={metronome}
             />
           </div>
         )}
@@ -333,6 +404,9 @@ function App() {
       <div className="md:hidden">
         <Navigation currentView={currentView} onViewChange={setCurrentView} />
       </div>
+
+      {/* Help Modal */}
+      <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
     </div>
   );
 }
