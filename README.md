@@ -27,16 +27,6 @@ Get the latest release for your platform:
 - **Windows**: `.msi` or `.exe`
 - **Linux**: `.deb` or `.AppImage`
 
-### macOS Installation Note
-
-If you see the error **"Chops is damaged and can't be opened"**, this is because the app is not yet notarized with Apple. The app is not actually damaged. To fix this, open Terminal and run:
-
-```bash
-xattr -cr /Applications/Chops.app
-```
-
-Then open the app normally. This removes the macOS quarantine flag applied to downloaded files.
-
 ## Development
 
 ### Prerequisites
