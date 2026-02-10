@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __BUILD_NUMBER__: JSON.stringify(Date.now().toString(36)),
+  },
   plugins: [react(), tailwindcss()],
   server: {
     port: 3000,

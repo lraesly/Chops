@@ -462,7 +462,12 @@ function App() {
             <h1 className="text-xl font-bold text-gray-800 dark:text-white">Chops</h1>
             <p className="text-xs text-gray-500 dark:text-gray-400">Build your skills, track your progress</p>
           </div>
-          <ThemeToggle />
+          <div className="flex flex-col items-end gap-0.5">
+            <ThemeToggle />
+            <span className="text-[10px] text-gray-300 dark:text-gray-600 select-none">
+              {__BUILD_NUMBER__}
+            </span>
+          </div>
         </div>
       </header>
 
