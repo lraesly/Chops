@@ -12,6 +12,7 @@ import { PracticeSession } from './components/PracticeSession';
 import { History } from './components/History';
 import { Stats } from './components/Stats';
 import { ItemsManager } from './components/ItemsManager';
+import { TodoList } from './components/TodoList';
 import { ThemeToggle } from './components/ThemeToggle';
 import { StorageSetup } from './components/StorageSetup';
 import { Settings } from './components/Settings';
@@ -31,6 +32,8 @@ function App() {
   const [recordings, setRecordings, recordingsLoaded] = useFileStorage('sessionRecordings', []);
   const [sessionTotalTime, setSessionTotalTime] = useFileStorage('sessionTotalTime', 0);
   const [userTags, setUserTags] = useFileStorage('userTags', []);
+  const [todoItems, setTodoItems] = useFileStorage('todoItems', []);
+  const [archivedTodoItems, setArchivedTodoItems] = useFileStorage('archivedTodoItems', []);
   const [colorTheme, setColorTheme] = useFileStorage('colorTheme', 'violet');
   const [hasSeenWelcome, setHasSeenWelcome] = useFileStorage('hasSeenWelcome', false);
   const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
@@ -152,11 +155,12 @@ function App() {
 
   // Keyboard shortcuts for navigation and actions
   const shortcuts = useMemo(() => [
-    // View switching: Cmd/Ctrl + 1-4 and comma
+    // View switching: Cmd/Ctrl + 1-5 and comma
     { key: '1', ctrl: true, handler: () => setCurrentView('practice') },
     { key: '2', ctrl: true, handler: () => setCurrentView('items') },
-    { key: '3', ctrl: true, handler: () => setCurrentView('history') },
-    { key: '4', ctrl: true, handler: () => setCurrentView('stats') },
+    { key: '3', ctrl: true, handler: () => setCurrentView('todos') },
+    { key: '4', ctrl: true, handler: () => setCurrentView('history') },
+    { key: '5', ctrl: true, handler: () => setCurrentView('stats') },
     { key: ',', ctrl: true, handler: () => setCurrentView('settings') },
     // Save session: Cmd/Ctrl + S (only when in practice view and can save)
     {
@@ -368,10 +372,54 @@ function App() {
     setArchivedItems(data.archivedItems);
     setSessions(data.sessions);
     setUserTags(data.userTags);
+    if (data.todoItems) setTodoItems(data.todoItems);
+    if (data.archivedTodoItems) setArchivedTodoItems(data.archivedTodoItems);
   };
 
   const handleDeleteTag = (tagToDelete) => {
     setUserTags(prev => prev.filter(tag => tag !== tagToDelete));
+  };
+
+  const handleAddTodo = (name) => {
+    const newTodo = {
+      id: Date.now().toString(),
+      name,
+      createdAt: new Date().toISOString(),
+    };
+    setTodoItems(prev => [...prev, newTodo]);
+    addToast(`Added "${name}" to to-do list`);
+  };
+
+  const handleArchiveTodo = (item) => {
+    setTodoItems(prev => prev.filter(i => i.id !== item.id));
+    setArchivedTodoItems(prev => [...prev, { ...item, archivedAt: new Date().toISOString() }]);
+    addToast(`Archived "${item.name}"`);
+  };
+
+  const handleRestoreTodo = (item) => {
+    setArchivedTodoItems(prev => prev.filter(i => i.id !== item.id));
+    const { archivedAt, ...restoredItem } = item;
+    setTodoItems(prev => [...prev, restoredItem]);
+    addToast(`Restored "${item.name}"`);
+  };
+
+  const handleDeleteTodo = (itemId) => {
+    setTodoItems(prev => prev.filter(i => i.id !== itemId));
+    setArchivedTodoItems(prev => prev.filter(i => i.id !== itemId));
+  };
+
+  const handleMoveTodoToItems = (item) => {
+    const newPracticeItem = {
+      id: Date.now().toString(),
+      name: item.name,
+      createdAt: new Date().toISOString(),
+      category: null,
+      tags: [],
+      attachments: [],
+    };
+    setPracticeItems(prev => [...prev, newPracticeItem]);
+    setTodoItems(prev => prev.filter(i => i.id !== item.id));
+    addToast(`Moved "${item.name}" to practice items`);
   };
 
   const handleResetAllData = () => {
@@ -382,6 +430,8 @@ function App() {
     setSessionItems([]);
     setRecordings([]);
     setSessionTotalTime(0);
+    setTodoItems([]);
+    setArchivedTodoItems([]);
   };
 
   const handleWelcomeGetStarted = () => {
@@ -472,6 +522,18 @@ function App() {
           />
         )}
 
+        {currentView === 'todos' && (
+          <TodoList
+            todoItems={todoItems}
+            archivedTodoItems={archivedTodoItems}
+            onAddTodo={handleAddTodo}
+            onArchiveTodo={handleArchiveTodo}
+            onRestoreTodo={handleRestoreTodo}
+            onDeleteTodo={handleDeleteTodo}
+            onMoveTodoToItems={handleMoveTodoToItems}
+          />
+        )}
+
         {currentView === 'history' && (
           <History
             sessions={sessions}
@@ -494,6 +556,8 @@ function App() {
             archivedItems={archivedItems}
             sessions={sessions}
             userTags={userTags}
+            todoItems={todoItems}
+            archivedTodoItems={archivedTodoItems}
             onImportData={handleImportData}
             onResetStorage={isTauri ? resetStorage : null}
             colorTheme={colorTheme}

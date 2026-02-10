@@ -24,6 +24,8 @@ export function Settings({
   archivedItems,
   sessions,
   userTags,
+  todoItems = [],
+  archivedTodoItems = [],
   onImportData,
   onResetStorage,
   colorTheme,
@@ -166,6 +168,8 @@ export function Settings({
       archivedItems,
       practiceSessions: sessions,
       userTags,
+      todoItems,
+      archivedTodoItems,
       colorTheme,
       exportedAt: new Date().toISOString(),
       version: '1.0',
@@ -236,6 +240,8 @@ export function Settings({
           archivedItems: data.archivedItems || [],
           sessions: data.practiceSessions || [],
           userTags: data.userTags || [],
+          todoItems: data.todoItems || [],
+          archivedTodoItems: data.archivedTodoItems || [],
         });
         showMessage('Data imported successfully!');
       }
@@ -410,6 +416,12 @@ export function Settings({
           </div>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3 text-center">
             <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+              {todoItems.length}
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">To-Do Items</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3 text-center">
+            <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
               {archivedItems.length}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Archived Items</p>
@@ -496,11 +508,11 @@ export function Settings({
           </div>
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          This will permanently delete all practice items, archived items, session history, and tags.
+          This will permanently delete all practice items, to-do items, archived items, session history, and tags.
         </p>
         <button
           onClick={() => setShowResetAllModal(true)}
-          disabled={practiceItems.length === 0 && archivedItems.length === 0 && sessions.length === 0 && userTags.length === 0}
+          disabled={practiceItems.length === 0 && archivedItems.length === 0 && sessions.length === 0 && userTags.length === 0 && todoItems.length === 0 && archivedTodoItems.length === 0}
           className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Trash2 size={18} />
@@ -615,7 +627,8 @@ export function Settings({
               </p>
               <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 ml-4">
                 <li>• {practiceItems.length} practice item{practiceItems.length !== 1 ? 's' : ''}</li>
-                <li>• {archivedItems.length} archived item{archivedItems.length !== 1 ? 's' : ''}</li>
+                <li>• {todoItems.length} to-do item{todoItems.length !== 1 ? 's' : ''}</li>
+                <li>• {archivedItems.length + archivedTodoItems.length} archived item{(archivedItems.length + archivedTodoItems.length) !== 1 ? 's' : ''}</li>
                 <li>• {sessions.length} session{sessions.length !== 1 ? 's' : ''}</li>
                 <li>• {userTags.length} tag{userTags.length !== 1 ? 's' : ''}</li>
               </ul>

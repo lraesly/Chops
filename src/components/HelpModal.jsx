@@ -27,8 +27,9 @@ const shortcuts = [
     items: [
       { keys: [cmdKey, '1'], description: 'Go to Practice' },
       { keys: [cmdKey, '2'], description: 'Go to Items' },
-      { keys: [cmdKey, '3'], description: 'Go to History' },
-      { keys: [cmdKey, '4'], description: 'Go to Statistics' },
+      { keys: [cmdKey, '3'], description: 'Go to To Do' },
+      { keys: [cmdKey, '4'], description: 'Go to History' },
+      { keys: [cmdKey, '5'], description: 'Go to Statistics' },
       { keys: [cmdKey, ','], description: 'Go to Settings' },
       { keys: ['?'], description: 'Show this help' },
     ],

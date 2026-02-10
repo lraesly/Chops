@@ -1,9 +1,10 @@
-import { Music, History, BarChart3, Library, Settings } from 'lucide-react';
+import { Music, History, BarChart3, Library, ListTodo, Settings } from 'lucide-react';
 
 export function Navigation({ currentView, onViewChange }) {
   const tabs = [
     { id: 'practice', label: 'Practice', icon: Music },
     { id: 'items', label: 'Items', icon: Library },
+    { id: 'todos', label: 'To Do', icon: ListTodo },
     { id: 'history', label: 'History', icon: History },
     { id: 'stats', label: 'Stats', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
