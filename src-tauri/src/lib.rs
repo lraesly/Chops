@@ -3,6 +3,11 @@ mod menu;
 use menu::create_app_menu;
 use tauri::Emitter;
 
+#[tauri::command]
+fn open_file(path: String) -> Result<(), String> {
+    open::that(&path).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -32,6 +37,7 @@ pub fn run() {
                 eprintln!("Failed to emit menu event: {}", e);
             }
         })
+        .invoke_handler(tauri::generate_handler![open_file])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

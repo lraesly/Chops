@@ -24,7 +24,8 @@
       "allow": [
         "$DOCUMENT/**",
         "$HOME/Documents/**",
-        "$HOME/**"
+        "$HOME/**",
+        "$TEMP/**"
       ]
     },
     "dialog:default",

@@ -435,10 +435,23 @@ export const PracticeSession = forwardRef(function PracticeSession({
                         if (attachment.type === 'link') {
                           await open(attachment.url);
                         } else if (attachment.type === 'pdf') {
-                          const pdfWindow = window.open('');
-                          pdfWindow.document.write(
-                            `<iframe width='100%' height='100%' src='${attachment.data}' frameborder='0'></iframe>`
-                          );
+                          const { writeFile } = await import('@tauri-apps/plugin-fs');
+                          const { tempDir } = await import('@tauri-apps/api/path');
+                          const { invoke } = await import('@tauri-apps/api/core');
+
+                          const temp = await tempDir();
+                          const safeName = attachment.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+                          const filePath = `${temp}${safeName}.pdf`;
+
+                          const base64 = attachment.data.split(',')[1];
+                          const binaryString = atob(base64);
+                          const bytes = new Uint8Array(binaryString.length);
+                          for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                          }
+
+                          await writeFile(filePath, bytes);
+                          await invoke('open_file', { path: filePath });
                         }
                       }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm text-white transition-colors"
