@@ -12,26 +12,35 @@ export function useMetronome() {
   // Create or recreate the AudioContext
   const ensureAudioContext = useCallback(() => {
     if (audioContextRef.current) {
-      // Close existing context if it exists
+      // Remove old listener and close
+      audioContextRef.current.onstatechange = null;
       try {
         audioContextRef.current.close();
       } catch (e) {
         // Ignore errors when closing
       }
     }
-    audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-    return audioContextRef.current;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Auto-resume if the OS/WebView suspends the context while we're playing
+    ctx.onstatechange = () => {
+      if (ctx.state === 'suspended' && isPlayingRef.current) {
+        ctx.resume();
+      }
+    };
+    audioContextRef.current = ctx;
+    return ctx;
   }, []);
 
   const createClick = useCallback(() => {
-    if (!audioContextRef.current) {
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
       ensureAudioContext();
     }
+
     const ctx = audioContextRef.current;
 
-    // Check if context is in a bad state and recreate if needed
-    if (ctx.state === 'closed') {
-      ensureAudioContext();
+    // Resume if suspended (OS/WebView can suspend AudioContext at any time)
+    if (ctx.state === 'suspended') {
+      ctx.resume();
     }
 
     const oscillator = ctx.createOscillator();
@@ -103,7 +112,7 @@ export function useMetronome() {
     }
   }, [isPlaying, start, stop]);
 
-  // Handle audio device changes (e.g., switching speakers, connecting Bluetooth)
+  // Handle audio device changes and app visibility changes
   useEffect(() => {
     const handleDeviceChange = () => {
       if (isPlayingRef.current) {
@@ -119,21 +128,40 @@ export function useMetronome() {
           audioContextRef.current.resume();
         }
         nextNoteTimeRef.current = audioContextRef.current.currentTime;
-        // Use ref to always get the latest scheduler (with current bpm)
         schedulerRef.current();
       }
     };
 
-    // Listen for device changes
+    // When app regains focus, ensure AudioContext is running
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isPlayingRef.current && audioContextRef.current) {
+        if (audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume();
+        }
+        // If context was closed/interrupted, restart playback entirely
+        if (audioContextRef.current.state === 'closed') {
+          ensureAudioContext();
+          if (timerIdRef.current) {
+            clearTimeout(timerIdRef.current);
+            timerIdRef.current = null;
+          }
+          nextNoteTimeRef.current = audioContextRef.current.currentTime;
+          schedulerRef.current();
+        }
+      }
+    };
+
     if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
       navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       if (timerIdRef.current) {
         clearTimeout(timerIdRef.current);
       }
       if (audioContextRef.current) {
+        audioContextRef.current.onstatechange = null;
         try {
           audioContextRef.current.close();
         } catch (e) {
@@ -143,8 +171,9 @@ export function useMetronome() {
       if (navigator.mediaDevices && navigator.mediaDevices.removeEventListener) {
         navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
       }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [ensureAudioContext]); // Removed scheduler - use schedulerRef instead to avoid cleanup on bpm change
+  }, [ensureAudioContext]);
 
   // Restart metronome when BPM changes (if currently playing)
   // eslint-disable-next-line react-hooks/exhaustive-deps
