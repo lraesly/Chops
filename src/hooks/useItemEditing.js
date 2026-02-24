@@ -9,6 +9,7 @@ export function useItemEditing({ items, sessions, onItemsChange, userTags, onAdd
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState(null);
   const [newItemTags, setNewItemTags] = useState([]);
+  const [newItemAttachments, setNewItemAttachments] = useState([]);
   const [showNewItemOptions, setShowNewItemOptions] = useState(false);
 
   // Editing state
@@ -56,17 +57,26 @@ export function useItemEditing({ items, sessions, onItemsChange, userTags, onAdd
         createdAt: new Date().toISOString(),
         category: newItemCategory,
         tags: newItemTags,
-        attachments: [],
+        attachments: newItemAttachments,
       };
       onItemsChange([...items, newItem]);
       setNewItemName('');
       setNewItemCategory(null);
       setNewItemTags([]);
+      setNewItemAttachments([]);
       setShowNewItemOptions(false);
       return newItem;
     }
     return null;
-  }, [newItemName, newItemCategory, newItemTags, items, onItemsChange]);
+  }, [newItemName, newItemCategory, newItemTags, newItemAttachments, items, onItemsChange]);
+
+  const addNewItemAttachment = useCallback((attachment) => {
+    setNewItemAttachments(prev => [...prev, attachment]);
+  }, []);
+
+  const removeNewItemAttachment = useCallback((id) => {
+    setNewItemAttachments(prev => prev.filter(a => a.id !== id));
+  }, []);
 
   const startEditing = useCallback((item) => {
     setEditingId(item.id);
@@ -134,6 +144,9 @@ export function useItemEditing({ items, sessions, onItemsChange, userTags, onAdd
     setNewItemTags,
     showNewItemOptions,
     setShowNewItemOptions,
+    newItemAttachments,
+    addNewItemAttachment,
+    removeNewItemAttachment,
     addItem,
 
     // Editing

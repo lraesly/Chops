@@ -29,6 +29,9 @@ export function PracticeItems({
     setNewItemTags,
     showNewItemOptions,
     setShowNewItemOptions,
+    newItemAttachments,
+    addNewItemAttachment,
+    removeNewItemAttachment,
     addItem,
 
     // Editing
@@ -115,6 +118,9 @@ export function PracticeItems({
         setNewItemTags={setNewItemTags}
         showNewItemOptions={showNewItemOptions}
         setShowNewItemOptions={setShowNewItemOptions}
+        newItemAttachments={newItemAttachments}
+        onAddAttachment={addNewItemAttachment}
+        onRemoveAttachment={removeNewItemAttachment}
         onAddItem={handleAddItem}
         userTags={userTags}
         onAddTag={onAddTag}

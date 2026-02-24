@@ -34,6 +34,9 @@ export function ItemsManager({
     setNewItemTags,
     showNewItemOptions,
     setShowNewItemOptions,
+    newItemAttachments,
+    addNewItemAttachment,
+    removeNewItemAttachment,
     addItem,
 
     // Editing
@@ -148,6 +151,9 @@ export function ItemsManager({
               setNewItemTags={setNewItemTags}
               showNewItemOptions={showNewItemOptions}
               setShowNewItemOptions={setShowNewItemOptions}
+              newItemAttachments={newItemAttachments}
+              onAddAttachment={addNewItemAttachment}
+              onRemoveAttachment={removeNewItemAttachment}
               onAddItem={addItem}
               userTags={userTags}
               onAddTag={onAddTag}
