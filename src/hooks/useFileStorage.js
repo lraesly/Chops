@@ -169,13 +169,22 @@ const queueWrite = (key, value) => {
       }
 
       try {
-        // Read current data
-        const allData = await readDataFromFile(storagePath) || {};
-        console.log('Current data before write:', allData);
+        // Read current data (skip cache to get latest from disk).
+        // null means the data file exists but could not be read or parsed. Writing
+        // on top of that would replace the whole file with only the pending keys,
+        // so refuse rather than risk wiping real data. {} means no file yet, which
+        // is fine to write.
+        const allData = await readDataFromFile(storagePath, { skipCache: true });
+        if (allData === null) {
+          console.error(
+            'Data file could not be read; skipping write to avoid overwriting it. Keys:',
+            Object.keys(writesToProcess)
+          );
+          return;
+        }
 
-        // Apply all pending writes
+        // Apply writes
         Object.assign(allData, writesToProcess);
-        console.log('Data after merge:', allData);
 
         // Write back
         await writeDataToFile(storagePath, allData);
@@ -292,36 +301,85 @@ const ensureStorageDir = async (storagePath) => {
   }
 };
 
-// Read all data from file
-export const readDataFromFile = async (storagePath) => {
+// Cache for initial file read (all useFileStorage hooks read on mount simultaneously)
+let readCache = null;
+let readCachePromise = null;
+let readCachePath = null;
+
+// Read all data from file (cached so multiple hooks share one read).
+// Returns:
+//   - the parsed data object on success
+//   - {} when no data file exists yet (fresh install / new folder)
+//   - null when the file exists but could not be read or parsed, or the
+//     filesystem is unavailable. Callers must not write over the file in that case.
+export const readDataFromFile = async (storagePath, { skipCache = false } = {}) => {
   if (!isTauri()) return null;
 
-  try {
-    console.log('readDataFromFile: Loading modules...');
-    const { fs } = await loadTauriModules();
-
-    if (!fs) {
-      console.log('readDataFromFile: No fs module available');
-      return {};
-    }
-
-    const filePath = `${storagePath}/${DATA_FILENAME}`;
-    console.log('Reading from:', filePath);
-
-    // Try to read the file directly with timeout - it will throw if it doesn't exist
-    try {
-      const content = await withTimeout(fs.readTextFile(filePath), 5000);
-      console.log('File read successfully');
-      return JSON.parse(content);
-    } catch (readError) {
-      // File doesn't exist, can't be read, or timed out - that's OK, return empty
-      console.log('File does not exist or cannot be read:', readError.message);
-      return {};
-    }
-  } catch (error) {
-    console.error('Error in readDataFromFile:', error);
-    return {};
+  // Return cached data if available and path matches
+  if (!skipCache && readCache && readCachePath === storagePath) {
+    return readCache;
   }
+
+  // If a read is already in progress for this path, wait for it
+  if (!skipCache && readCachePromise && readCachePath === storagePath) {
+    return readCachePromise;
+  }
+
+  const doRead = async () => {
+    try {
+      console.log('readDataFromFile: Loading modules...');
+      const { fs } = await loadTauriModules();
+
+      if (!fs) {
+        console.error('readDataFromFile: No fs module available');
+        return null;
+      }
+
+      const filePath = `${storagePath}/${DATA_FILENAME}`;
+      console.log('Reading from:', filePath);
+
+      let fileExists = true;
+      try {
+        fileExists = await fs.exists(filePath);
+      } catch (existsError) {
+        // If we can't even check, fall through and let the read decide
+        console.warn('Could not check whether data file exists:', existsError.message);
+      }
+      if (!fileExists) {
+        console.log('No data file yet, starting empty');
+        return {};
+      }
+
+      try {
+        const content = await fs.readTextFile(filePath);
+        console.log('File read successfully');
+        const data = JSON.parse(content);
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+          console.error('Data file has unexpected shape; treating as unreadable');
+          return null;
+        }
+        readCache = data;
+        readCachePath = storagePath;
+        return data;
+      } catch (readError) {
+        console.error('Data file exists but could not be read or parsed:', readError.message);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error in readDataFromFile:', error);
+      return null;
+    }
+  };
+
+  if (!skipCache) {
+    readCachePath = storagePath;
+    readCachePromise = doRead();
+    const result = await readCachePromise;
+    readCachePromise = null;
+    return result;
+  }
+
+  return doRead();
 };
 
 // Write all data to file
@@ -341,7 +399,9 @@ export const writeDataToFile = async (storagePath, data) => {
     const filePath = `${storagePath}/${DATA_FILENAME}`;
     const content = JSON.stringify(data, null, 2);
 
-    await withTimeout(fs.writeTextFile(filePath, content), 5000);
+    await withTimeout(fs.writeTextFile(filePath, content), 30000);
+    // Invalidate read cache so next read gets fresh data
+    readCache = null;
     console.log('File written successfully to:', filePath);
   } catch (error) {
     console.error('Error writing data file:', error);
@@ -445,6 +505,9 @@ export function useFileStorage(key, initialValue) {
   const [storedValue, setStoredValue] = useState(initialValue);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasUserModified, setHasUserModified] = useState(false);
+  // True when the data file exists but couldn't be read. We then keep the
+  // in-memory default but never write it back, so the file isn't clobbered.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   // Load initial value (only once on mount)
   useEffect(() => {
@@ -471,11 +534,15 @@ export function useFileStorage(key, initialValue) {
 
       try {
         const allData = await readDataFromFile(storagePath);
-        if (allData && key in allData) {
+        if (allData === null) {
+          console.error(`Data file unreadable; "${key}" will not be saved this session.`);
+          setLoadFailed(true);
+        } else if (key in allData) {
           setStoredValue(allData[key]);
         }
       } catch (error) {
         console.error(`Error reading file storage key "${key}":`, error);
+        setLoadFailed(true);
       }
       setIsLoaded(true);
     };
@@ -501,9 +568,14 @@ export function useFileStorage(key, initialValue) {
     const storagePath = getStoragePath();
     if (!storagePath) return;
 
+    if (loadFailed) {
+      console.error(`Not saving "${key}": data file could not be read at startup.`);
+      return;
+    }
+
     // Use the write queue to prevent race conditions
     queueWrite(key, storedValue);
-  }, [key, storedValue, isLoaded, hasUserModified]);
+  }, [key, storedValue, isLoaded, hasUserModified, loadFailed]);
 
   // Wrapper to track user modifications
   const setValue = useCallback((valueOrFn) => {

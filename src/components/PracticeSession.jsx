@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { Play, Pause, RotateCcw, X, ChevronUp, ChevronDown, Save, FileText, Timer, CheckCircle, TrendingUp, Calendar, Flame, Paperclip, Link as LinkIcon, Plus } from 'lucide-react';
-import { useTimer, formatTime } from '../hooks/useTimer';
+import { Play, Pause, RotateCcw, X, ChevronUp, ChevronDown, Save, FileText, Timer, CheckCircle, TrendingUp, Calendar, Flame, Paperclip, Link as LinkIcon, Plus, Pencil, BookmarkPlus } from 'lucide-react';
+import { useTimer, formatTime, parseTimeInput } from '../hooks/useTimer';
 import { MetronomePopup } from './MetronomePopup';
 import { RecordButton } from './RecordButton';
 import { RecordingsList } from './AudioRecorder';
@@ -75,6 +75,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
   onOpenItemsPicker,
   initialSessionTime = 0,
   onSessionTimeChange,
+  onSaveTemplate,
   metronome,
 }, ref) {
   const sessionTimer = useTimer();
@@ -87,6 +88,14 @@ export const PracticeSession = forwardRef(function PracticeSession({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [savedSessionInfo, setSavedSessionInfo] = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Inline editing of an item's time (only allowed while the session is paused)
+  const [editingTimeIndex, setEditingTimeIndex] = useState(null);
+  const [editingTimeValue, setEditingTimeValue] = useState('');
+  // Mirrors editingTimeIndex so Enter + the resulting blur can't commit twice
+  const editingTimeIndexRef = useRef(null);
+  // Save-as-template dialog
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
   const prevItemIndexRef = useRef(null);
   const recordButtonRef = useRef(null);
   const metronomePopupRef = useRef(null);
@@ -260,6 +269,73 @@ export const PracticeSession = forwardRef(function PracticeSession({
     } else {
       setCurrentItemIndex(index);
     }
+  };
+
+  // ---- Item time editing (session must be paused) ----
+  const canEditTimes = !sessionTimer.isRunning;
+
+  const getDisplayedItemTime = (index) =>
+    index === currentItemIndex ? itemTimer.time : (sessionItems[index]?.itemTime || 0);
+
+  const startEditingTime = (index) => {
+    if (!canEditTimes) return;
+    editingTimeIndexRef.current = index;
+    setEditingTimeIndex(index);
+    setEditingTimeValue(formatTime(getDisplayedItemTime(index)));
+  };
+
+  // Commits (or cancels) the edit. Called on Enter, Escape, and blur; the ref
+  // guard makes it a no-op the second time. Any change to an item's time is
+  // also applied to the session total.
+  const finishEditingTime = (rawValue, { cancelled = false } = {}) => {
+    const index = editingTimeIndexRef.current;
+    if (index === null) return;
+    editingTimeIndexRef.current = null;
+    setEditingTimeIndex(null);
+    setEditingTimeValue('');
+    if (cancelled || sessionTimer.isRunning || !sessionItems[index]) return;
+
+    const newTime = parseTimeInput(rawValue);
+    if (newTime === null) return;
+
+    const oldTime = getDisplayedItemTime(index);
+    const delta = newTime - oldTime;
+    if (delta === 0) return;
+
+    onUpdateSessionItemTime(index, newTime);
+    if (index === currentItemIndex) {
+      itemTimer.setInitialTime(newTime);
+    }
+
+    const newSessionTime = Math.max(0, sessionTimer.time + delta);
+    sessionTimer.setInitialTime(newSessionTime);
+    if (onSessionTimeChange) {
+      onSessionTimeChange(newSessionTime);
+    }
+    if (newSessionTime > 0) {
+      setSessionStarted(true);
+    }
+  };
+
+  // ---- Save current queue as a template ----
+  const openSaveTemplate = () => {
+    setTemplateName('');
+    setShowSaveTemplate(true);
+  };
+
+  const confirmSaveTemplate = (e) => {
+    e?.preventDefault?.();
+    const name = templateName.trim();
+    if (!name || sessionItems.length === 0 || !onSaveTemplate) return;
+    onSaveTemplate({
+      name,
+      items: sessionItems.map((sessionItem) => {
+        const item = getEnrichedItem(sessionItem);
+        return { id: item.id, name: item.name };
+      }),
+    });
+    setShowSaveTemplate(false);
+    setTemplateName('');
   };
 
   const getMonthStats = (includingNewSession = null) => {
@@ -488,7 +564,10 @@ export const PracticeSession = forwardRef(function PracticeSession({
               <RotateCcw size={32} />
             </button>
           </div>
-          <p className="text-xs text-white/60">Press SPACE to start/pause</p>
+          <p className="text-xs text-white/60">
+            Press SPACE to start/pause
+            {sessionItems.length > 0 && !sessionTimer.isRunning && ' · Click an item\'s time to edit it'}
+          </p>
         </div>
       </div>
 
@@ -497,13 +576,25 @@ export const PracticeSession = forwardRef(function PracticeSession({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Session Queue</h3>
           {sessionItems.length > 0 && (
-            <button
-              onClick={onOpenItemsPicker}
-              className="flex items-center gap-2 px-3 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-xl transition-colors"
-            >
-              <Plus size={18} />
-              <span className="hidden sm:inline">Add Items</span>
-            </button>
+            <div className="flex items-center gap-1">
+              {onSaveTemplate && (
+                <button
+                  onClick={openSaveTemplate}
+                  className="flex items-center gap-2 px-3 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-xl transition-colors"
+                  title="Save this queue as a reusable template"
+                >
+                  <BookmarkPlus size={18} />
+                  <span className="hidden sm:inline">Save Template</span>
+                </button>
+              )}
+              <button
+                onClick={onOpenItemsPicker}
+                className="flex items-center gap-2 px-3 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-xl transition-colors"
+              >
+                <Plus size={18} />
+                <span className="hidden sm:inline">Add Items</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -582,11 +673,48 @@ export const PracticeSession = forwardRef(function PracticeSession({
                     )}
                   </div>
 
-                  {/* Show item time */}
-                  <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                    <Timer size={14} />
-                    {formatTime(index === currentItemIndex ? itemTimer.time : (sessionItem.itemTime || 0))}
-                  </span>
+                  {/* Item time (editable while the session is paused) */}
+                  {editingTimeIndex === index ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      inputMode="numeric"
+                      value={editingTimeValue}
+                      onChange={(e) => setEditingTimeValue(e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+                          e.preventDefault();
+                          finishEditingTime(e.currentTarget.value);
+                        } else if (e.key === 'Escape' || e.code === 'Escape') {
+                          e.preventDefault();
+                          finishEditingTime(e.currentTarget.value, { cancelled: true });
+                        }
+                      }}
+                      onBlur={(e) => finishEditingTime(e.currentTarget.value)}
+                      placeholder="m:ss"
+                      title="Enter minutes, m:ss, or h:mm:ss. Enter to save, Esc to cancel."
+                      className="w-20 px-2 py-1 text-sm text-right bg-white dark:bg-gray-800 border border-primary-400 dark:border-primary-500 rounded-lg text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditingTime(index);
+                      }}
+                      disabled={!canEditTimes}
+                      className={`text-sm flex items-center gap-1 px-1.5 py-0.5 rounded-lg transition-colors ${
+                        canEditTimes
+                          ? 'text-gray-600 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900/40 hover:text-primary-700 dark:hover:text-primary-300'
+                          : 'text-gray-500 dark:text-gray-400 cursor-default'
+                      }`}
+                      title={canEditTimes ? 'Click to edit this item\'s time' : 'Pause the session to edit item times'}
+                    >
+                      <Timer size={14} />
+                      {formatTime(getDisplayedItemTime(index))}
+                      {canEditTimes && <Pencil size={11} className="opacity-50" />}
+                    </button>
+                  )}
 
                   <button
                     onClick={(e) => {
@@ -700,6 +828,57 @@ export const PracticeSession = forwardRef(function PracticeSession({
               Continue
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Save as Template */}
+      {showSaveTemplate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <form
+            onSubmit={confirmSaveTemplate}
+            className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg">
+                <BookmarkPlus className="text-primary-600 dark:text-primary-400" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Save as Template</h3>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+              Saves the {sessionItems.length} item{sessionItems.length !== 1 ? 's' : ''} in this queue.
+              Templates always load with 0:00 of time.
+            </p>
+            <input
+              autoFocus
+              type="text"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setShowSaveTemplate(false);
+                }
+              }}
+              placeholder="Template name (e.g. Warm-up, Sunday Set)"
+              className="w-full px-4 py-2.5 mb-6 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowSaveTemplate(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!templateName.trim()}
+                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Save Template
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

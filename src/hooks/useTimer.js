@@ -69,3 +69,23 @@ export function formatTime(ms) {
   }
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
+
+// Parse a user-entered time into milliseconds.
+// Accepts "12" (minutes), "12:30" (m:ss), or "1:02:30" (h:mm:ss).
+// Returns null if the input can't be parsed.
+export function parseTimeInput(input) {
+  const str = String(input ?? '').trim();
+  if (!str) return null;
+  const parts = str.split(':').map((p) => p.trim());
+  if (parts.length > 3 || parts.some((p) => !/^\d+(\.\d+)?$/.test(p))) return null;
+  const nums = parts.map(Number);
+  let seconds;
+  if (nums.length === 1) {
+    seconds = nums[0] * 60;
+  } else if (nums.length === 2) {
+    seconds = nums[0] * 60 + nums[1];
+  } else {
+    seconds = nums[0] * 3600 + nums[1] * 60 + nums[2];
+  }
+  return Math.max(0, Math.round(seconds * 1000));
+}

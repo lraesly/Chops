@@ -28,8 +28,9 @@ const shortcuts = [
       { keys: [cmdKey, '1'], description: 'Go to Practice' },
       { keys: [cmdKey, '2'], description: 'Go to Items' },
       { keys: [cmdKey, '3'], description: 'Go to To Do' },
-      { keys: [cmdKey, '4'], description: 'Go to History' },
-      { keys: [cmdKey, '5'], description: 'Go to Statistics' },
+      { keys: [cmdKey, '4'], description: 'Go to Templates' },
+      { keys: [cmdKey, '5'], description: 'Go to History' },
+      { keys: [cmdKey, '6'], description: 'Go to Statistics' },
       { keys: [cmdKey, ','], description: 'Go to Settings' },
       { keys: ['?'], description: 'Show this help' },
     ],
@@ -38,6 +39,8 @@ const shortcuts = [
 
 const tips = [
   'Add practice items first, then start a session from the Practice tab.',
+  'Save a session queue as a Template to reload the same set of items later.',
+  'Pause the session to click and correct any item\'s time; the session total adjusts to match.',
   'Use the metronome to keep time while practicing.',
   'Record yourself to track progress over time.',
   'Check Statistics to see your practice streaks and trends.',

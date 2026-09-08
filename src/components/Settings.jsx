@@ -26,6 +26,7 @@ export function Settings({
   userTags,
   todoItems = [],
   archivedTodoItems = [],
+  practiceTemplates = [],
   onImportData,
   onResetStorage,
   colorTheme,
@@ -143,7 +144,10 @@ export function Settings({
         const oldPath = getStoragePath();
         let currentData = {};
         if (oldPath) {
-          currentData = await readDataFromFile(oldPath) || {};
+          currentData = await readDataFromFile(oldPath);
+          if (currentData === null) {
+            throw new Error('Current data file could not be read; not moving storage.');
+          }
         }
 
         // Write to new location
@@ -170,6 +174,7 @@ export function Settings({
       userTags,
       todoItems,
       archivedTodoItems,
+      practiceTemplates,
       colorTheme,
       exportedAt: new Date().toISOString(),
       version: '1.0',
@@ -242,6 +247,7 @@ export function Settings({
           userTags: data.userTags || [],
           todoItems: data.todoItems || [],
           archivedTodoItems: data.archivedTodoItems || [],
+          practiceTemplates: data.practiceTemplates || [],
         });
         showMessage('Data imported successfully!');
       }
@@ -628,6 +634,7 @@ export function Settings({
               <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 ml-4">
                 <li>• {practiceItems.length} practice item{practiceItems.length !== 1 ? 's' : ''}</li>
                 <li>• {todoItems.length} to-do item{todoItems.length !== 1 ? 's' : ''}</li>
+                <li>• {practiceTemplates.length} template{practiceTemplates.length !== 1 ? 's' : ''}</li>
                 <li>• {archivedItems.length + archivedTodoItems.length} archived item{(archivedItems.length + archivedTodoItems.length) !== 1 ? 's' : ''}</li>
                 <li>• {sessions.length} session{sessions.length !== 1 ? 's' : ''}</li>
                 <li>• {userTags.length} tag{userTags.length !== 1 ? 's' : ''}</li>

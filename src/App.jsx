@@ -13,6 +13,7 @@ import { History } from './components/History';
 import { Stats } from './components/Stats';
 import { ItemsManager } from './components/ItemsManager';
 import { TodoList } from './components/TodoList';
+import { Templates } from './components/Templates';
 import { ThemeToggle } from './components/ThemeToggle';
 import { StorageSetup } from './components/StorageSetup';
 import { Settings } from './components/Settings';
@@ -22,6 +23,30 @@ import { useToast } from './components/Toast';
 
 function App() {
   const { isConfigured, isLoading, setupStorage, chooseFolder, resetStorage, isTauri } = useStorageSetup();
+
+  // Show storage setup for Tauri if not configured
+  if (isTauri && !isLoading && !isConfigured) {
+    return <StorageSetup onSetup={setupStorage} onChooseFolder={chooseFolder} />;
+  }
+
+  // Show loading state until storage path is confirmed
+  // This ensures useFileStorage hooks in AppContent only mount
+  // after the storage path is available in localStorage
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading your practice data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <AppContent isTauri={isTauri} resetStorage={resetStorage} />;
+}
+
+function AppContent({ isTauri, resetStorage }) {
   const { addToast } = useToast();
 
   const [currentView, setCurrentView] = useState('practice');
@@ -34,6 +59,7 @@ function App() {
   const [userTags, setUserTags] = useFileStorage('userTags', []);
   const [todoItems, setTodoItems] = useFileStorage('todoItems', []);
   const [archivedTodoItems, setArchivedTodoItems] = useFileStorage('archivedTodoItems', []);
+  const [practiceTemplates, setPracticeTemplates] = useFileStorage('practiceTemplates', []);
   const [colorTheme, setColorTheme] = useFileStorage('colorTheme', 'violet');
   const [hasSeenWelcome, setHasSeenWelcome] = useFileStorage('hasSeenWelcome', false);
   const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
@@ -124,7 +150,6 @@ function App() {
   }, [colorTheme]);
 
   // Spacebar shortcut to toggle timer (only on Practice view)
-  // NOTE: All hooks must be called before any early returns
   useSpacebarToggle(
     () => {
       practiceSessionRef.current?.toggleTimer();
@@ -155,12 +180,13 @@ function App() {
 
   // Keyboard shortcuts for navigation and actions
   const shortcuts = useMemo(() => [
-    // View switching: Cmd/Ctrl + 1-5 and comma
+    // View switching: Cmd/Ctrl + 1-6 and comma
     { key: '1', ctrl: true, handler: () => setCurrentView('practice') },
     { key: '2', ctrl: true, handler: () => setCurrentView('items') },
     { key: '3', ctrl: true, handler: () => setCurrentView('todos') },
-    { key: '4', ctrl: true, handler: () => setCurrentView('history') },
-    { key: '5', ctrl: true, handler: () => setCurrentView('stats') },
+    { key: '4', ctrl: true, handler: () => setCurrentView('templates') },
+    { key: '5', ctrl: true, handler: () => setCurrentView('history') },
+    { key: '6', ctrl: true, handler: () => setCurrentView('stats') },
     { key: ',', ctrl: true, handler: () => setCurrentView('settings') },
     // Save session: Cmd/Ctrl + S (only when in practice view and can save)
     {
@@ -228,13 +254,8 @@ function App() {
 
   useKeyboardShortcuts(shortcuts);
 
-  // Show storage setup for Tauri if not configured
-  if (isTauri && !isLoading && !isConfigured) {
-    return <StorageSetup onSetup={setupStorage} onChooseFolder={chooseFolder} />;
-  }
-
-  // Show loading state
-  if (isLoading || (isTauri && (!itemsLoaded || !sessionsLoaded || !sessionItemsLoaded || !recordingsLoaded))) {
+  // Show loading state while file data loads
+  if (isTauri && (!itemsLoaded || !sessionsLoaded || !sessionItemsLoaded || !recordingsLoaded)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
@@ -374,6 +395,7 @@ function App() {
     setUserTags(data.userTags);
     if (data.todoItems) setTodoItems(data.todoItems);
     if (data.archivedTodoItems) setArchivedTodoItems(data.archivedTodoItems);
+    if (data.practiceTemplates) setPracticeTemplates(data.practiceTemplates);
   };
 
   const handleDeleteTag = (tagToDelete) => {
@@ -422,6 +444,64 @@ function App() {
     addToast(`Moved "${item.name}" to practice items`);
   };
 
+  // ---- Practice templates ----
+  // Resolve a template's item references to full practice items (active, then archived,
+  // then a bare {id, name} if the item was deleted) and build a fresh session queue.
+  const buildSessionItemsFromTemplate = (template) =>
+    template.items.map((templateItem) => {
+      const source = practiceItems.find((p) => p.id === templateItem.id)
+        || archivedItems.find((a) => a.id === templateItem.id)
+        || { id: templateItem.id, name: templateItem.name };
+      return {
+        ...source,
+        sessionInstanceId: `${source.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        itemTime: 0,
+      };
+    });
+
+  const handleCreateTemplate = ({ name, items }) => {
+    const template = {
+      id: Date.now().toString(),
+      name,
+      items: items.map((item) => ({ id: item.id, name: item.name })),
+      createdAt: new Date().toISOString(),
+    };
+    setPracticeTemplates((prev) => [...prev, template]);
+    addToast(`Saved template "${name}"`);
+  };
+
+  const handleUpdateTemplate = (templateId, { name, items }) => {
+    setPracticeTemplates((prev) =>
+      prev.map((t) =>
+        t.id === templateId
+          ? {
+              ...t,
+              name,
+              items: items.map((item) => ({ id: item.id, name: item.name })),
+              updatedAt: new Date().toISOString(),
+            }
+          : t
+      )
+    );
+    addToast(`Updated template "${name}"`);
+  };
+
+  const handleDeleteTemplate = (templateId) => {
+    const template = practiceTemplates.find((t) => t.id === templateId);
+    setPracticeTemplates((prev) => prev.filter((t) => t.id !== templateId));
+    if (template) addToast(`Deleted template "${template.name}"`);
+  };
+
+  // Load a template as the current session: replaces the queue, clears recordings,
+  // and resets the session total so every item starts at 0:00.
+  const handleLoadTemplate = (template) => {
+    setSessionItems(buildSessionItemsFromTemplate(template));
+    setRecordings([]);
+    setSessionTotalTime(0);
+    setCurrentView('practice');
+    addToast(`Loaded template "${template.name}"`);
+  };
+
   const handleResetAllData = () => {
     setPracticeItems([]);
     setArchivedItems([]);
@@ -432,6 +512,7 @@ function App() {
     setSessionTotalTime(0);
     setTodoItems([]);
     setArchivedTodoItems([]);
+    setPracticeTemplates([]);
   };
 
   const handleWelcomeGetStarted = () => {
@@ -508,6 +589,7 @@ function App() {
               onOpenItemsPicker={() => setIsItemsModalOpen(true)}
               initialSessionTime={sessionTotalTime}
               onSessionTimeChange={setSessionTotalTime}
+              onSaveTemplate={handleCreateTemplate}
               metronome={metronome}
             />
           </div>
@@ -539,6 +621,20 @@ function App() {
           />
         )}
 
+        {currentView === 'templates' && (
+          <Templates
+            templates={practiceTemplates}
+            practiceItems={practiceItems}
+            archivedItems={archivedItems}
+            sessionItems={sessionItems}
+            sessionTotalTime={sessionTotalTime}
+            onCreateTemplate={handleCreateTemplate}
+            onUpdateTemplate={handleUpdateTemplate}
+            onDeleteTemplate={handleDeleteTemplate}
+            onLoadTemplate={handleLoadTemplate}
+          />
+        )}
+
         {currentView === 'history' && (
           <History
             sessions={sessions}
@@ -563,6 +659,7 @@ function App() {
             userTags={userTags}
             todoItems={todoItems}
             archivedTodoItems={archivedTodoItems}
+            practiceTemplates={practiceTemplates}
             onImportData={handleImportData}
             onResetStorage={isTauri ? resetStorage : null}
             colorTheme={colorTheme}

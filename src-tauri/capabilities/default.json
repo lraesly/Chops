@@ -25,7 +25,8 @@
         "$DOCUMENT/**",
         "$HOME/Documents/**",
         "$HOME/**",
-        "$TEMP/**"
+        "$TEMP/**",
+        "$APPCONFIG/**"
       ]
     },
     "dialog:default",
