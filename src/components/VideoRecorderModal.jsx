@@ -175,6 +175,12 @@ export function VideoRecorderModal({ onClose, onSaveRecording, sessionInstanceId
   useEffect(() => {
     const onKeyDown = (e) => {
       const tag = e.target.tagName;
+      // Stay on this window: switching tabs (⌘1–6, ⌘,) would hide it mid-take
+      if ((e.metaKey || e.ctrlKey) && (/^[1-6]$/.test(e.key) || e.key === ',')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (take) {

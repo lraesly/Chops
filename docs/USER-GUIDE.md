@@ -62,9 +62,7 @@ If the current item has attachments (links or PDFs), they appear as buttons on t
 
 ### Practice notes
 
-Open **Practice Notes** under the timer to jot down how the session went. Bold, italic, underline and lists are available. Notes are saved with the session.
-
-> **Good to know:** notes are only kept while you stay on the Practice tab. Save the session before switching tabs or quitting, or the notes are lost.
+Open **Practice Notes** under the timer to jot down how the session went. Bold, italic, underline and lists are available. Notes are kept as you type, even if you switch tabs or quit, and are saved with the session.
 
 ### Save the session
 
@@ -74,7 +72,9 @@ When you're done, click **Save Session** (or **⌘S** / **Ctrl+S**). Chops store
 
 **Save Template** (above the queue) saves the current items, in order, as a reusable [template](#templates).
 
-> **Good to know:** leaving the Practice tab pauses the session. An audio recording in progress is lost, and an open video recorder closes (the video file is kept but not added to the session). Finish recording before switching tabs.
+The session keeps running while you look at other tabs: timers keep counting and an audio recording in progress carries on. The video recorder stays on screen until you close it.
+
+If you quit or close the window with an unsaved session, Chops asks before discarding it.
 
 ---
 
@@ -91,7 +91,7 @@ In the Recordings list:
 
 Audio is recorded in mono, without echo cancellation, noise suppression or automatic gain. The first time you record, macOS asks for microphone access.
 
-To keep a copy outside Chops, use **Export WAV** on the recording in [History](#history).
+To keep a copy outside Chops, use **Export WAV** on the recording in [History](#history); Chops asks where to save it.
 
 ---
 
@@ -201,7 +201,7 @@ History lists your saved sessions by day, newest first. Click a session to expan
 
 - **Practice Notes** and each item's time are shown.
 - **Copy to Session** adds the session's items to your current queue, each at 0:00.
-- **Recordings:** play audio, **Export WAV** to save a copy, play videos, or **Show in Finder**.
+- **Recordings:** play audio, **Export WAV** to save a copy wherever you choose, play videos, or **Show in Finder**.
 - The **trash icon** deletes the session after asking. Its audio recordings go to the Trash; its videos stay in your video folder.
 
 ---

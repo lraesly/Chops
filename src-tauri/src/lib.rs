@@ -37,6 +37,12 @@ fn reveal_file(path: String) -> Result<(), String> {
     }
 }
 
+// Quits after the frontend has confirmed there's nothing unsaved (menu Quit)
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 // Moves a file to the Trash / Recycle Bin instead of deleting it outright
 #[tauri::command]
 fn trash_file(path: String) -> Result<(), String> {
@@ -102,7 +108,7 @@ pub fn run() {
                 eprintln!("Failed to emit menu event: {}", e);
             }
         })
-        .invoke_handler(tauri::generate_handler![open_file, reveal_file, trash_file])
+        .invoke_handler(tauri::generate_handler![open_file, reveal_file, trash_file, quit_app])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

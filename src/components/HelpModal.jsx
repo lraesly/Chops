@@ -53,7 +53,7 @@ const shortcuts = [
 const guide = [
   {
     title: 'Practice',
-    body: 'Add items to the queue, then press Space to start. ▶ on a queue item switches to it; the session clock keeps running. Pause to click an item\'s time and correct it. Save Session (⌘S) stores times, notes and recordings. Save notes before leaving the tab: switching tabs pauses the session and clears unsaved notes.',
+    body: 'Add items to the queue, then press Space to start. ▶ on a queue item switches to it; the session clock keeps running. Pause to click an item\'s time and correct it. Save Session (⌘S) stores times, notes and recordings. The session keeps running while you visit other tabs, and notes are kept even if you quit.',
   },
   {
     title: 'Recording audio',

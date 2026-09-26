@@ -5,7 +5,9 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { VideoPlayerModal } from './VideoPlayerModal';
 import { revealVideoFile, revealLabel } from '../hooks/videoStorage';
 import { loadRecordingBlob } from '../hooks/audioStorage';
+import { isTauri } from '../hooks/useFileStorage';
 import { useRecordingPlayer } from '../hooks/useRecordingPlayer';
+import { isHtmlNotes, sanitizeNotesHtml, notesToText } from '../constants/notes';
 
 export function History({ sessions, onDeleteSession, onCopyToSession }) {
   const [expandedSession, setExpandedSession] = useState(null);
@@ -42,18 +44,31 @@ export function History({ sessions, onDeleteSession, onCopyToSession }) {
 
       // Convert to WAV
       const wavBlob = audioBufferToWav(audioBuffer);
+      audioContext.close();
+      const fileName = `${(recording.name || 'recording').replace(/[/\\:*?"<>|]/g, '-')}.wav`;
 
-      // Download
+      if (isTauri()) {
+        // The desktop webview ignores <a download>, so ask where to save
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { writeFile } = await import('@tauri-apps/plugin-fs');
+        const filePath = await save({
+          defaultPath: fileName,
+          filters: [{ name: 'WAV audio', extensions: ['wav'] }],
+        });
+        if (filePath) {
+          await writeFile(filePath, new Uint8Array(await wavBlob.arrayBuffer()));
+        }
+        return;
+      }
+
       const url = URL.createObjectURL(wavBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${recording.name || 'recording'}.wav`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
-      audioContext.close();
     } catch (error) {
       console.error('Error exporting recording:', error);
       alert('Failed to export recording. Please try again.');
@@ -180,7 +195,7 @@ export function History({ sessions, onDeleteSession, onCopyToSession }) {
                           {session.notes && expandedSession !== session.id && (
                             <p className="text-sm text-primary-600 dark:text-primary-400 mt-1 truncate flex items-center gap-1">
                               <FileText size={12} className="flex-shrink-0" />
-                              <span className="truncate">{session.notes}</span>
+                              <span className="truncate">{notesToText(session.notes)}</span>
                             </p>
                           )}
                         </div>
@@ -219,9 +234,17 @@ export function History({ sessions, onDeleteSession, onCopyToSession }) {
                                   <FileText size={14} />
                                   Practice Notes
                                 </p>
-                                <p className="text-gray-700 dark:text-gray-200 text-sm whitespace-pre-wrap">
-                                  {session.notes}
-                                </p>
+                                {isHtmlNotes(session.notes) ? (
+                                  <div
+                                    className="text-gray-700 dark:text-gray-200 text-sm [&_ul]:list-disc [&_ul]:ml-5 [&_ol]:list-decimal [&_ol]:ml-5"
+                                    // Sanitized to the editor's own formatting tags, no attributes
+                                    dangerouslySetInnerHTML={{ __html: sanitizeNotesHtml(session.notes) }}
+                                  />
+                                ) : (
+                                  <p className="text-gray-700 dark:text-gray-200 text-sm whitespace-pre-wrap">
+                                    {session.notes}
+                                  </p>
+                                )}
                               </div>
                             )}
 

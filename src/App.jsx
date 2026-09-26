@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { confirm } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
 import { ChopsIcon } from './components/ChopsIcon';
 import { useFileStorage, useStorageSetup } from './hooks/useFileStorage';
 import { migrateEmbeddedAudio, applyMigratedPaths, hasEmbeddedAudio } from './hooks/audioStorage';
@@ -57,6 +58,7 @@ function AppContent({ isTauri, resetStorage }) {
   const [sessionItems, setSessionItems, sessionItemsLoaded] = useFileStorage('sessionQueue', []);
   const [sessions, setSessions, sessionsLoaded] = useFileStorage('practiceSessions', []);
   const [recordings, setRecordings, recordingsLoaded] = useFileStorage('sessionRecordings', []);
+  const [sessionNotes, setSessionNotes, sessionNotesLoaded] = useFileStorage('sessionNotes', '');
   const [sessionTotalTime, setSessionTotalTime] = useFileStorage('sessionTotalTime', 0);
   const [userTags, setUserTags] = useFileStorage('userTags', []);
   const [todoItems, setTodoItems] = useFileStorage('todoItems', []);
@@ -75,9 +77,13 @@ function AppContent({ isTauri, resetStorage }) {
   // Listen for menu events from Tauri
   useEffect(() => {
     let unlisten;
-    listen('menu-action', (event) => {
+    listen('menu-action', async (event) => {
       const action = event.payload;
-      if (action === 'help_shortcuts') {
+      if (action === 'quit') {
+        if (!hasUnsavedSessionRef.current() || (await confirmDiscardUnsaved())) {
+          await invoke('quit_app');
+        }
+      } else if (action === 'help_shortcuts') {
         setShowHelpModal(true);
       } else if (action === 'metronome_toggle' && currentView === 'practice') {
         practiceSessionRef.current?.toggleMetronomePopup?.();
@@ -103,7 +109,21 @@ function AppContent({ isTauri, resetStorage }) {
     };
   }, [currentView, metronome]);
 
-  // Quit protection: prompt to save when there's an active session
+  // Quit protection: warn before closing the window or quitting (⌘Q) with an unsaved
+  // session. Checked through a ref so the handlers always see the latest state;
+  // canSave covers timer time not yet persisted (that happens every 5 seconds).
+  const hasUnsavedSessionRef = useRef(() => false);
+  useEffect(() => {
+    hasUnsavedSessionRef.current = () =>
+      sessionTotalTime > 0 || recordings.length > 0 || !!practiceSessionRef.current?.canSave;
+  });
+
+  const confirmDiscardUnsaved = () =>
+    confirm('You have an unsaved practice session. Are you sure you want to quit?', {
+      title: 'Unsaved Session',
+      kind: 'warning',
+    });
+
   useEffect(() => {
     let unlistenClose;
 
@@ -111,24 +131,11 @@ function AppContent({ isTauri, resetStorage }) {
       try {
         const appWindow = getCurrentWindow();
         unlistenClose = await appWindow.onCloseRequested(async (event) => {
-          // Check if there's an active session (timer has been started and has time)
-          if (sessionTotalTime > 0) {
-            // Prevent the window from closing immediately
-            event.preventDefault();
-
-            // Show confirmation dialog
-            const confirmed = await confirm(
-              'You have an unsaved practice session. Are you sure you want to quit?',
-              { title: 'Unsaved Session', kind: 'warning' }
-            );
-
-            if (confirmed) {
-              // User confirmed, force close
-              await appWindow.destroy();
-            }
-            // If not confirmed, do nothing (window stays open)
+          if (!hasUnsavedSessionRef.current()) return; // nothing to lose, close normally
+          event.preventDefault();
+          if (await confirmDiscardUnsaved()) {
+            await appWindow.destroy();
           }
-          // If no active session, allow normal close
         });
       } catch (e) {
         // Not running in Tauri, ignore
@@ -141,7 +148,7 @@ function AppContent({ isTauri, resetStorage }) {
     return () => {
       if (unlistenClose) unlistenClose();
     };
-  }, [sessionTotalTime]);
+  }, []);
 
   // Show welcome modal for new users (no items, no sessions, hasn't dismissed)
   const showWelcome = !hasSeenWelcome && practiceItems.length === 0 && sessions.length === 0;
@@ -270,7 +277,7 @@ function AppContent({ isTauri, resetStorage }) {
   // One-time move of audio that older versions stored inline in the data file
   // (as base64) out to separate files, which keeps the data file small.
   const audioMigrationStartedRef = useRef(false);
-  const allDataLoaded = itemsLoaded && sessionsLoaded && sessionItemsLoaded && recordingsLoaded;
+  const allDataLoaded = itemsLoaded && sessionsLoaded && sessionItemsLoaded && recordingsLoaded && sessionNotesLoaded;
   useEffect(() => {
     if (!isTauri || !allDataLoaded || audioMigrationStartedRef.current) return;
     const embedded = [
@@ -304,7 +311,7 @@ function AppContent({ isTauri, resetStorage }) {
   }, [isTauri, allDataLoaded]);
 
   // Show loading state while file data loads
-  if (isTauri && (!itemsLoaded || !sessionsLoaded || !sessionItemsLoaded || !recordingsLoaded)) {
+  if (isTauri && !allDataLoaded) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
@@ -397,12 +404,14 @@ function AppContent({ isTauri, resetStorage }) {
     setSessions([...sessions, session]);
     setSessionItems([]);
     setRecordings([]);
+    setSessionNotes('');
     setSessionTotalTime(0);
   };
 
   const handleResetPracticeSession = () => {
     setSessionItems([]);
     setRecordings([]);
+    setSessionNotes('');
     trashDroppedAudio(recordings, sessions, []);
     setSessionTotalTime(0);
   };
@@ -596,6 +605,7 @@ function AppContent({ isTauri, resetStorage }) {
   const handleLoadTemplate = (template) => {
     setSessionItems(buildSessionItemsFromTemplate(template));
     setRecordings([]);
+    setSessionNotes('');
     trashDroppedAudio(recordings, sessions, []);
     setSessionTotalTime(0);
     setCurrentView('practice');
@@ -609,6 +619,7 @@ function AppContent({ isTauri, resetStorage }) {
     setUserTags([]);
     setSessionItems([]);
     setRecordings([]);
+    setSessionNotes('');
     trashDroppedAudio([...recordings, ...sessions.flatMap((s) => s.recordings || [])], [], []);
     setSessionTotalTime(0);
     setTodoItems([]);
@@ -658,8 +669,9 @@ function AppContent({ isTauri, resetStorage }) {
       </div>
 
       <main className="max-w-4xl mx-auto px-4 py-6 pb-24 md:pb-6">
-        {currentView === 'practice' && (
-          <div className="space-y-6">
+        {/* Always mounted (just hidden) so a running session, its notes and any
+            recording in progress carry on while other tabs are open */}
+        <div className={currentView === 'practice' ? 'space-y-6' : 'hidden'}>
             <PracticeItemsModal
               isOpen={isItemsModalOpen}
               onClose={() => setIsItemsModalOpen(false)}
@@ -692,9 +704,10 @@ function AppContent({ isTauri, resetStorage }) {
               onSessionTimeChange={setSessionTotalTime}
               onSaveTemplate={handleCreateTemplate}
               metronome={metronome}
+              practiceNotes={sessionNotes}
+              onPracticeNotesChange={setSessionNotes}
             />
-          </div>
-        )}
+        </div>
 
         {currentView === 'items' && (
           <ItemsManager

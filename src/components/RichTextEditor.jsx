@@ -21,13 +21,14 @@ function ToolbarButton({ onClick, active, children, title }) {
 export function RichTextEditor({ value, onChange, placeholder }) {
   const editorRef = useRef(null);
 
+  // Pick up outside changes (loading saved notes, clearing after Save Session), but
+  // never while the user is typing here, which would reset the caret
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
+    const editor = editorRef.current;
+    if (editor && document.activeElement !== editor && editor.innerHTML !== (value || '')) {
+      editor.innerHTML = value || '';
     }
-    // Seed the editor once; re-syncing on every change would reset the caret while typing
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [value]);
 
   const handleInput = () => {
     if (editorRef.current) {

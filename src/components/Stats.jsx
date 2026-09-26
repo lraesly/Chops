@@ -202,11 +202,9 @@ export function Stats({ sessions, practiceItems, userTags }) {
 function OverviewTab({ sessions, allSessions, practiceItems, selectedTag, onSelectTag }) {
   const now = new Date();
 
+  // Midnight on the most recent Sunday (a negative day rolls back into last month)
   const getWeekStart = (date) => {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day;
-    return new Date(d.setDate(diff));
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
   };
 
   const getMonthStart = (date) => {

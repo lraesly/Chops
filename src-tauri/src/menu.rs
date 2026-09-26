@@ -15,7 +15,14 @@ pub fn create_app_menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<Wry>>
         .item(&PredefinedMenuItem::hide_others(app, None)?)
         .item(&PredefinedMenuItem::show_all(app, None)?)
         .separator()
-        .item(&PredefinedMenuItem::quit(app, None)?)
+        // Custom Quit (not PredefinedMenuItem::quit) so the app can warn about an
+        // unsaved session first; the predefined item exits without asking
+        .item(
+            &MenuItemBuilder::new("Quit Chops")
+                .id("quit")
+                .accelerator("CmdOrCtrl+Q")
+                .build(app)?,
+        )
         .build()?;
 
     // === FILE MENU ===

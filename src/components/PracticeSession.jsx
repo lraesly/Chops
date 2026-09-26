@@ -79,11 +79,12 @@ export const PracticeSession = forwardRef(function PracticeSession({
   onSessionTimeChange,
   onSaveTemplate,
   metronome,
+  practiceNotes = '',
+  onPracticeNotesChange,
 }, ref) {
   const sessionTimer = useTimer();
   const itemTimer = useItemTimer();
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
-  const [practiceNotes, setPracticeNotes] = useState('');
   const [showNotes, setShowNotes] = useState(false);
   // Initialize sessionStarted from props to avoid render gap when switching tabs
   const [sessionStarted, setSessionStarted] = useState(() => initialSessionTime > 0 || sessionItems.length > 0);
@@ -417,7 +418,6 @@ export const PracticeSession = forwardRef(function PracticeSession({
     onSaveSession(session);
     sessionTimer.reset();
     itemTimer.reset();
-    setPracticeNotes('');
     setCurrentItemIndex(0);
     setSessionStarted(false);
     setShowConfirmation(true);
@@ -434,7 +434,6 @@ export const PracticeSession = forwardRef(function PracticeSession({
     // Reset local state
     sessionTimer.reset();
     itemTimer.reset();
-    setPracticeNotes('');
     setCurrentItemIndex(0);
     setSessionStarted(false);
     setShowNotes(false);
@@ -758,7 +757,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
         {showNotes && (
           <RichTextEditor
             value={practiceNotes}
-            onChange={setPracticeNotes}
+            onChange={onPracticeNotesChange}
             placeholder="Add notes about this practice session..."
           />
         )}
