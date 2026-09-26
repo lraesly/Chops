@@ -17,9 +17,12 @@ export function useKeyboardShortcuts(shortcuts, enabled = true) {
 
     for (const shortcut of shortcuts) {
       const keyMatches = event.key === shortcut.key || event.code === shortcut.code;
-      const ctrlMatches = !shortcut.ctrl || (shortcut.ctrl && (event.ctrlKey || event.metaKey));
+      // Plain-key shortcuts must not fire with Cmd/Ctrl/Option held, or Cmd+V (paste)
+      // would also trigger V. Shift isn't checked because keys like '?' need it.
+      const cmdOrCtrl = event.ctrlKey || event.metaKey;
+      const ctrlMatches = shortcut.ctrl ? cmdOrCtrl : !cmdOrCtrl;
       const shiftMatches = !shortcut.shift || (shortcut.shift && event.shiftKey);
-      const altMatches = !shortcut.alt || (shortcut.alt && event.altKey);
+      const altMatches = shortcut.alt ? event.altKey : !event.altKey;
 
       if (keyMatches && ctrlMatches && shiftMatches && altMatches) {
         if (shortcut.preventDefault !== false) {
