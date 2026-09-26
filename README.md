@@ -13,7 +13,7 @@ A desktop app for musicians to track practice sessions and build skills over tim
 - **Metronome** - Pop-up metronome with tempo presets and keyboard control
 - **Practice Notes** - Rich-text notes saved with each session
 - **Items, Categories & Tags** - Organize your library, attach links and PDFs, archive what you're done with
-- **To Do** - Park ideas to practice later and promote them to items
+- **To Do** - Park ideas to practice later, with notes, links and labels, and promote them to items; other tools can add to-dos through an inbox folder
 - **Templates** - Save a queue (warm-up, set list) and reload it in one click
 - **History** - Every session with notes, item times and recordings; copy a session back into the queue
 - **Statistics** - Totals, streaks, a 30-day calendar, and time by category, item and tag

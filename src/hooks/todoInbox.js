@@ -1,4 +1,4 @@
-// Other tools (e.g. a script that pulls action items out of a coach's feedback)
+// Other tools (e.g. a script that pulls action items out of a teacher's feedback)
 // can't write to the data file while Chops is open: the app holds to-dos in memory
 // and would overwrite them on the next save. Instead they drop JSON files into
 // "<data folder>/To Do Inbox/". Chops picks them up on launch and whenever the

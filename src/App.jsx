@@ -645,6 +645,21 @@ function AppContent({ isTauri, resetStorage }) {
     addToast(`Added "${name}" to to-do list`);
   };
 
+  // Blank optional fields are removed rather than stored as empty strings
+  const handleUpdateTodo = (id, changes) => {
+    setTodoItems(prev => prev.map((t) => {
+      if (t.id !== id) return t;
+      const updated = { ...t, name: changes.name.trim() };
+      for (const field of ['note', 'link', 'source']) {
+        const value = (changes[field] || '').trim();
+        if (value) updated[field] = value;
+        else delete updated[field];
+      }
+      if (!updated.source) delete updated.sourceDate;
+      return updated;
+    }));
+  };
+
   const handleArchiveTodo = (item) => {
     setTodoItems(prev => prev.filter(i => i.id !== item.id));
     setArchivedTodoItems(prev => [...prev, { ...item, archivedAt: new Date().toISOString() }]);
@@ -664,7 +679,7 @@ function AppContent({ isTauri, resetStorage }) {
   };
 
   const handleMoveTodoToItems = (item) => {
-    // A to-do's link (e.g. the coach feedback it came from) carries over as an attachment
+    // A to-do's link (e.g. the lesson or feedback it came from) carries over as an attachment
     const attachments = item.link
       ? [{
           id: `${Date.now()}-link`,
@@ -868,6 +883,7 @@ function AppContent({ isTauri, resetStorage }) {
             onRestoreTodo={handleRestoreTodo}
             onDeleteTodo={handleDeleteTodo}
             onMoveTodoToItems={handleMoveTodoToItems}
+            onUpdateTodo={handleUpdateTodo}
           />
         )}
 

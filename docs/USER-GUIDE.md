@@ -2,7 +2,7 @@
 
 Chops is a practice tracker for musicians. You build a queue of things to practice, time each one, record yourself on audio or video, and look back at your history and statistics.
 
-This guide covers Chops 0.6. Press **?** in the app at any time for the keyboard shortcuts and a short version of this guide.
+This guide covers Chops 0.7. Press **?** in the app at any time for the keyboard shortcuts and a short version of this guide.
 
 - [Getting started](#getting-started)
 - [Practice](#practice)
@@ -17,6 +17,7 @@ This guide covers Chops 0.6. Press **?** in the app at any time for the keyboard
 - [Settings](#settings)
 - [Where your files are kept](#where-your-files-are-kept)
 - [Keyboard shortcuts](#keyboard-shortcuts)
+- [For tool builders: the To Do Inbox](#for-tool-builders-the-to-do-inbox)
 
 ---
 
@@ -182,19 +183,11 @@ A place for things you want to practice later.
 - **Archive** sets it aside; **Delete** removes it after asking.
 - The **Archived** tab lets you restore or delete archived ideas.
 
-**To-dos from other tools.** A to-do can also say where it came from, such as a teacher's feedback video. Those show a note, a label like *Daniel Seriff · Sep 24* and an **open** button that jumps to the source (a web page or a file). Once any to-do has a label, chips at the top filter the list by source (**Mine** shows the ones you typed). Moving one to practice items keeps its link as an attachment.
+- The **pencil** edits a to-do: its name, a **note**, a **link** (a web address or a file path) and a **label**, such as who suggested it. Leave a field blank to remove it.
+- A to-do with a link shows an **open** button. A label appears as a tag like *Guitar teacher · Sep 24*, and once any to-do has one, chips at the top filter the list by label (**Mine** shows the unlabeled ones).
+- Moving a to-do to practice items keeps its link as an attachment.
 
-Other tools add these by dropping a JSON file in the **To Do Inbox** folder inside your data folder. Chops picks it up when it starts or when you switch back to it, then moves the file into **To Do Inbox/Imported**:
-
-```json
-{ "todos": [
-  { "id": "ic-2026-09-24-01", "name": "Loop the bend at 60 bpm",
-    "source": "Daniel Seriff", "sourceDate": "2026-09-24",
-    "note": "12:34 – let the wrist float", "link": "/path/to/feedback.html" }
-] }
-```
-
-Only `name` is required. If a to-do with the same `id` is already in your active list, its details are updated; one you archived is left alone.
+Other apps and scripts can add labeled to-dos too; see [For tool builders](#for-tool-builders-the-to-do-inbox).
 
 ---
 
@@ -305,3 +298,22 @@ On Windows use **Ctrl** where this says **⌘**. Single-key shortcuts don't fire
 | Enter / Esc | Save / cancel when editing an item, a time or a name |
 | ⌘B, ⌘I, ⌘U | Bold, italic, underline in practice notes |
 | Tab | Indent in practice notes |
+
+---
+
+## For tool builders: the To Do Inbox
+
+A script or another app can add to-dos to Chops, even while Chops is open, by dropping a JSON file in the **To Do Inbox** folder inside the data folder (create the folder if it isn't there). Chops picks the file up when it starts or when you switch back to it, adds the to-dos, and moves the file into **To Do Inbox/Imported**.
+
+```json
+{ "todos": [
+  { "id": "lesson-2026-09-24-01", "name": "Loop the bend at 60 bpm",
+    "source": "Guitar teacher", "sourceDate": "2026-09-24",
+    "note": "12:34 – let the wrist float", "link": "https://example.com/lesson" }
+] }
+```
+
+- Only `name` is required. `source` becomes the label and `sourceDate` (YYYY-MM-DD) is shown next to it.
+- Give each to-do a stable `id`. If a to-do with that `id` is already in the active list, its details are replaced with the new ones; one that was archived is left alone.
+- Write the file under a temporary name and rename it to `.json` when it's complete, so Chops never reads half a file. A file that can't be parsed is left in place and tried again later.
+- Don't write to `practice-log-data.json` directly while Chops is open; it keeps to-dos in memory and would overwrite your change.

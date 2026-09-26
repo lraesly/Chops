@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ListTodo, Plus, ArrowRightToLine, Archive, Trash2, RotateCcw, ExternalLink } from 'lucide-react';
+import { ListTodo, Plus, ArrowRightToLine, Archive, Trash2, RotateCcw, ExternalLink, Pencil } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { openLink } from '../hooks/todoInbox';
 
@@ -12,7 +12,7 @@ const formatSourceDate = (value) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-// Where a to-do came from (e.g. "Daniel Seriff · Sep 24"), plus its note and link
+// Where a to-do came from (e.g. "Guitar teacher · Sep 24"), plus its note and link
 function TodoDetails({ item }) {
   if (!item.source && !item.note) return null;
   return (
@@ -27,6 +27,47 @@ function TodoDetails({ item }) {
         </span>
       )}
     </>
+  );
+}
+
+const inputClass =
+  'w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+
+// Inline editor for a to-do's name, note, link and label. Blank fields are removed.
+function TodoEditor({ item, onSave, onCancel }) {
+  const [draft, setDraft] = useState({
+    name: item.name || '',
+    note: item.note || '',
+    link: item.link || '',
+    source: item.source || '',
+  });
+  const set = (field) => (e) => setDraft((d) => ({ ...d, [field]: e.target.value }));
+  const save = (e) => {
+    e.preventDefault();
+    if (!draft.name.trim()) return;
+    onSave(draft);
+  };
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onCancel();
+    }
+  };
+  return (
+    <form onSubmit={save} onKeyDown={onKeyDown} className="flex-1 min-w-0 space-y-2">
+      <input autoFocus type="text" value={draft.name} onChange={set('name')} placeholder="To-do" className={`${inputClass} font-medium`} />
+      <textarea value={draft.note} onChange={set('note')} placeholder="Note (optional)" rows={2} className={inputClass} />
+      <input type="text" value={draft.link} onChange={set('link')} placeholder="Link: a web address or a file path (optional)" className={inputClass} />
+      <input type="text" value={draft.source} onChange={set('source')} placeholder="Label, e.g. who suggested it (optional)" className={inputClass} />
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+          Cancel
+        </button>
+        <button type="submit" disabled={!draft.name.trim()} className="px-3 py-1.5 text-sm rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          Save
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -51,11 +92,13 @@ export function TodoList({
   onRestoreTodo,
   onDeleteTodo,
   onMoveTodoToItems,
+  onUpdateTodo,
 }) {
   const [activeTab, setActiveTab] = useState('active');
   const [newTodoName, setNewTodoName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [sourceFilter, setSourceFilter] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   // Filter chips appear once any active to-do has a source
   const sources = [...new Set(todoItems.map((i) => i.source).filter(Boolean))].sort();
@@ -187,6 +230,17 @@ export function TodoList({
                     key={item.id}
                     className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
                   >
+                    {editingId === item.id ? (
+                      <TodoEditor
+                        item={item}
+                        onSave={(draft) => {
+                          onUpdateTodo(item.id, draft);
+                          setEditingId(null);
+                        }}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    ) : (
+                    <>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-800 dark:text-gray-200 break-words">
                         {item.name}
@@ -198,6 +252,13 @@ export function TodoList({
                     </div>
                     <div className="flex gap-1.5 shrink-0">
                       <LinkButton item={item} />
+                      <button
+                        onClick={() => setEditingId(item.id)}
+                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil size={18} />
+                      </button>
                       <button
                         onClick={() => onMoveTodoToItems(item)}
                         className="p-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
@@ -220,6 +281,8 @@ export function TodoList({
                         <Trash2 size={18} />
                       </button>
                     </div>
+                    </>
+                    )}
                   </div>
                 ))
               )}
