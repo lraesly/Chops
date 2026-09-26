@@ -153,48 +153,61 @@ const queueWrite = (key, value) => {
     clearTimeout(writeTimeout);
   }
 
-  writeTimeout = setTimeout(() => {
-    const writesToProcess = { ...pendingWrites };
-    pendingWrites = {};
-    writeTimeout = null;
+  writeTimeout = setTimeout(processPendingWrites, 100);
+};
 
-    console.log('Processing writes for keys:', Object.keys(writesToProcess));
+// Writes everything queued so far (called by the debounce timer or flushWrites)
+const processPendingWrites = () => {
+  const writesToProcess = { ...pendingWrites };
+  pendingWrites = {};
+  writeTimeout = null;
 
-    // Chain this write onto the queue
-    writeQueue = writeQueue.then(async () => {
-      const storagePath = getStoragePath();
-      if (!storagePath) {
-        console.log('No storage path, skipping write');
+  console.log('Processing writes for keys:', Object.keys(writesToProcess));
+
+  // Chain this write onto the queue
+  writeQueue = writeQueue.then(async () => {
+    const storagePath = getStoragePath();
+    if (!storagePath) {
+      console.log('No storage path, skipping write');
+      return;
+    }
+
+    try {
+      // Read current data (skip cache to get latest from disk).
+      // null means the data file exists but could not be read or parsed. Writing
+      // on top of that would replace the whole file with only the pending keys,
+      // so refuse rather than risk wiping real data. {} means no file yet, which
+      // is fine to write.
+      const allData = await readDataFromFile(storagePath, { skipCache: true });
+      if (allData === null) {
+        console.error(
+          'Data file could not be read; skipping write to avoid overwriting it. Keys:',
+          Object.keys(writesToProcess)
+        );
         return;
       }
 
-      try {
-        // Read current data (skip cache to get latest from disk).
-        // null means the data file exists but could not be read or parsed. Writing
-        // on top of that would replace the whole file with only the pending keys,
-        // so refuse rather than risk wiping real data. {} means no file yet, which
-        // is fine to write.
-        const allData = await readDataFromFile(storagePath, { skipCache: true });
-        if (allData === null) {
-          console.error(
-            'Data file could not be read; skipping write to avoid overwriting it. Keys:',
-            Object.keys(writesToProcess)
-          );
-          return;
-        }
+      // Apply writes
+      Object.assign(allData, writesToProcess);
 
-        // Apply writes
-        Object.assign(allData, writesToProcess);
-
-        // Write back
-        await writeDataToFile(storagePath, allData);
-        console.log('Batch write completed for keys:', Object.keys(writesToProcess));
-      } catch (error) {
-        console.error('Error in queued write:', error);
-      }
-    });
-  }, 100);
+      // Write back
+      await writeDataToFile(storagePath, allData);
+      console.log('Batch write completed for keys:', Object.keys(writesToProcess));
+    } catch (error) {
+      console.error('Error in queued write:', error);
+    }
+  });
 };
+
+// Writes any queued changes now and resolves once they're on disk (e.g. before quitting)
+export const flushWrites = async () => {
+  if (writeTimeout) {
+    clearTimeout(writeTimeout);
+    processPendingWrites();
+  }
+  await writeQueue;
+};
+
 
 // Get the configured storage path (sync - from localStorage cache)
 export const getStoragePath = () => {

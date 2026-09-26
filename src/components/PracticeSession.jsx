@@ -135,6 +135,11 @@ export const PracticeSession = forwardRef(function PracticeSession({
     toggleRecording: () => recordButtonRef.current?.toggle(),
     isRecording: recordButtonRef.current?.isRecording,
     toggleMetronomePopup: () => metronomePopupRef.current?.toggle(),
+    // Store the latest timer values right away (normally synced every 1-5 seconds)
+    persistProgress: () => {
+      if (currentItem) onUpdateSessionItemTime(currentItemIndex, itemTimer.time);
+      onSessionTimeChange?.(sessionTimer.time);
+    },
     openVideoRecorder: () => {
       if (sessionStarted && isTauri()) setShowVideoRecorder(true);
     },

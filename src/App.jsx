@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { confirm } from '@tauri-apps/plugin-dialog';
+import { message } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { ChopsIcon } from './components/ChopsIcon';
-import { useFileStorage, useStorageSetup } from './hooks/useFileStorage';
+import { useFileStorage, useStorageSetup, flushWrites } from './hooks/useFileStorage';
 import { migrateEmbeddedAudio, applyMigratedPaths, hasEmbeddedAudio } from './hooks/audioStorage';
 import { trashFile } from './hooks/videoStorage';
 import { useKeyboardShortcuts, useSpacebarToggle } from './hooks/useKeyboardShortcuts';
@@ -80,7 +80,7 @@ function AppContent({ isTauri, resetStorage }) {
     listen('menu-action', async (event) => {
       const action = event.payload;
       if (action === 'quit') {
-        if (!hasUnsavedSessionRef.current() || (await confirmDiscardUnsaved())) {
+        if (await prepareToQuitRef.current()) {
           await invoke('quit_app');
         }
       } else if (action === 'help_shortcuts') {
@@ -109,20 +109,42 @@ function AppContent({ isTauri, resetStorage }) {
     };
   }, [currentView, metronome]);
 
-  // Quit protection: warn before closing the window or quitting (⌘Q) with an unsaved
-  // session. Checked through a ref so the handlers always see the latest state;
-  // canSave covers timer time not yet persisted (that happens every 5 seconds).
-  const hasUnsavedSessionRef = useRef(() => false);
+  // Before the window closes or the app quits (⌘Q): offer to save a session that has
+  // something to save. Just quitting keeps the session (queue, times, notes and
+  // recordings are restored next launch), so the latest timer values are stored
+  // either way, and pending writes are flushed so nothing is cut off.
+  const SAVE_AND_QUIT = 'Save & Quit';
+  const JUST_QUIT = 'Just Quit';
+  const prepareToQuit = async () => {
+    const session = practiceSessionRef.current;
+    if (session?.canSave) {
+      const choice = await message(
+        'Save this practice session to History before quitting?\n\nIf you just quit, Chops keeps the session and you can pick up where you left off.',
+        {
+          title: 'Unsaved Practice Session',
+          kind: 'warning',
+          buttons: { yes: SAVE_AND_QUIT, no: JUST_QUIT, cancel: 'Cancel' },
+        }
+      );
+      if (choice === SAVE_AND_QUIT || choice === 'Yes') {
+        session.saveSession();
+      } else if (choice === JUST_QUIT || choice === 'No') {
+        session.persistProgress();
+      } else {
+        return false;
+      }
+    } else {
+      session?.persistProgress();
+    }
+    // Let React commit the state changes and queue their writes, then write them now
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await flushWrites();
+    return true;
+  };
+  const prepareToQuitRef = useRef(prepareToQuit);
   useEffect(() => {
-    hasUnsavedSessionRef.current = () =>
-      sessionTotalTime > 0 || recordings.length > 0 || !!practiceSessionRef.current?.canSave;
+    prepareToQuitRef.current = prepareToQuit;
   });
-
-  const confirmDiscardUnsaved = () =>
-    confirm('You have an unsaved practice session. Are you sure you want to quit?', {
-      title: 'Unsaved Session',
-      kind: 'warning',
-    });
 
   useEffect(() => {
     let unlistenClose;
@@ -131,9 +153,8 @@ function AppContent({ isTauri, resetStorage }) {
       try {
         const appWindow = getCurrentWindow();
         unlistenClose = await appWindow.onCloseRequested(async (event) => {
-          if (!hasUnsavedSessionRef.current()) return; // nothing to lose, close normally
           event.preventDefault();
-          if (await confirmDiscardUnsaved()) {
+          if (await prepareToQuitRef.current()) {
             await appWindow.destroy();
           }
         });

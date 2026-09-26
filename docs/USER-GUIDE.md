@@ -74,7 +74,7 @@ When you're done, click **Save Session** (or **⌘S** / **Ctrl+S**). Chops store
 
 The session keeps running while you look at other tabs: timers keep counting and an audio recording in progress carries on. The video recorder stays on screen until you close it.
 
-If you quit or close the window with an unsaved session, Chops asks before discarding it.
+If you quit (⌘Q) or close the window during a session, Chops asks whether to **Save & Quit** (the session goes to History) or **Just Quit**. Just quitting keeps the session: the queue, times, notes and recordings are all there when you open Chops again.
 
 ---
 
