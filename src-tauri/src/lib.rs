@@ -2,6 +2,12 @@ mod menu;
 
 use menu::create_app_menu;
 use tauri::Emitter;
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
+
+// Remembered between launches: where the window was, how big, and whether maximized
+fn window_state_flags() -> StateFlags {
+    StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED
+}
 
 #[tauri::command]
 fn open_file(path: String) -> Result<(), String> {
@@ -40,6 +46,9 @@ fn reveal_file(path: String) -> Result<(), String> {
 // Quits after the frontend has confirmed there's nothing unsaved (menu Quit)
 #[tauri::command]
 fn quit_app(app: tauri::AppHandle) {
+    if let Err(e) = app.save_window_state(window_state_flags()) {
+        eprintln!("Could not save window size and position: {}", e);
+    }
     app.exit(0);
 }
 
@@ -85,6 +94,11 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(window_state_flags())
+                .build(),
+        )
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(

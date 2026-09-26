@@ -26,7 +26,7 @@ This guide covers Chops 0.6. Press **?** in the app at any time for the keyboard
 
 **Welcome.** With no items or sessions yet, Chops shows a short welcome. **Get Started** opens the item picker so you can add your first practice items.
 
-**Getting around.** The tabs are **Practice**, **Items**, **To Do**, **Templates**, **History**, **Stats** and **Settings**. On a narrow window they move to the bottom of the screen. The moon/sun button at the top right switches between light and dark mode. The small code under it is the build number, handy for checking which version you're running.
+**Getting around.** The tabs are **Practice**, **Items**, **To Do**, **Templates**, **History**, **Stats** and **Settings**. On a narrow window they move to the bottom of the screen. The moon/sun button at the top right switches between light and dark mode. The small code under it is the build number, handy for checking which version you're running. Chops remembers the window's size and position (and which screen it was on) from the last time you quit.
 
 ---
 
