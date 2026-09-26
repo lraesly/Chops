@@ -57,11 +57,6 @@ export function Reports({ sessions }) {
     };
   }, [last30Days, practiceByDate]);
 
-  // Get day name abbreviation
-  const getDayName = (date) => {
-    return date.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0);
-  };
-
   // Get intensity class based on practice time
   const getIntensityClass = (dateKey) => {
     const data = practiceByDate[dateKey];

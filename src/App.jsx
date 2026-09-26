@@ -261,6 +261,8 @@ function AppContent({ isTauri, resetStorage }) {
         setShowHelpModal(true);
       },
     },
+    // adjustTempoToPreset is rebuilt every render but only reads `metronome`, which is listed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [currentView, metronome]);
 
   useKeyboardShortcuts(shortcuts);

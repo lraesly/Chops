@@ -70,7 +70,7 @@ export function ItemsManager({
     // Attachment handlers
     handleAddAttachment,
     handleDeleteAttachment,
-  } = useItemEditing({ items, sessions, onItemsChange, userTags, onAddTag });
+  } = useItemEditing({ items, sessions, onItemsChange });
 
   const formatArchivedDate = (dateString) => {
     const date = new Date(dateString);

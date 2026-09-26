@@ -101,7 +101,7 @@ const readAppConfig = async () => {
       appConfigCache = JSON.parse(content);
       console.log('App config loaded:', appConfigCache);
       return appConfigCache;
-    } catch (readError) {
+    } catch {
       // Config doesn't exist yet
       console.log('No config file yet, using defaults');
       return {};
@@ -124,7 +124,7 @@ const writeAppConfig = async (config) => {
     // Ensure config directory exists
     try {
       await withTimeout(fs.mkdir(configDir, { recursive: true }), 5000);
-    } catch (e) {
+    } catch {
       // Directory might already exist
     }
 
@@ -548,7 +548,6 @@ export function useFileStorage(key, initialValue) {
     };
 
     loadValue();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]); // Only depend on key, not initialValue (which creates new refs each render)
 
   // Save value when it changes (only after user modification)
@@ -581,7 +580,7 @@ export function useFileStorage(key, initialValue) {
   const setValue = useCallback((valueOrFn) => {
     setHasUserModified(true);
     setStoredValue(valueOrFn);
-  }, [key]);
+  }, []);
 
   return [storedValue, setValue, isLoaded];
 }

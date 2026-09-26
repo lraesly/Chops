@@ -4,7 +4,7 @@ import {
   BarChart3, Hash, ChevronDown, X
 } from 'lucide-react';
 import { formatTime } from '../hooks/useTimer';
-import { CATEGORIES, getCategoryById, getCategoryColor } from '../constants/categories';
+import { CATEGORIES, getCategoryColor } from '../constants/categories';
 
 export function Stats({ sessions, practiceItems, userTags }) {
   const [activeTab, setActiveTab] = useState('overview');
@@ -199,7 +199,7 @@ export function Stats({ sessions, practiceItems, userTags }) {
 }
 
 // Overview Tab Component
-function OverviewTab({ sessions, allSessions, practiceItems, selectedTag, userTags, onSelectTag }) {
+function OverviewTab({ sessions, allSessions, practiceItems, selectedTag, onSelectTag }) {
   const now = new Date();
 
   const getWeekStart = (date) => {
@@ -272,7 +272,7 @@ function OverviewTab({ sessions, allSessions, practiceItems, selectedTag, userTa
   const streakDays = getStreakDays();
 
   // Calculate top tags by time this month
-  const topTagsThisMonth = useMemo(() => {
+  const topTagsThisMonth = (() => {
     const tagTime = {};
     thisMonthSessions.forEach(session => {
       session.items.forEach(sessionItem => {
@@ -289,7 +289,7 @@ function OverviewTab({ sessions, allSessions, practiceItems, selectedTag, userTa
       .map(([tag, time]) => ({ tag, time }))
       .sort((a, b) => b.time - a.time)
       .slice(0, 5);
-  }, [thisMonthSessions, practiceItems]);
+  })();
 
   return (
     <div className="space-y-6">

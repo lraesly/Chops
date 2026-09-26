@@ -41,7 +41,7 @@ export function useAudioRecorder() {
         permissionStatus.onchange = () => {
           setPermissionState(permissionStatus.state);
         };
-      } catch (error) {
+      } catch {
         // Permissions API not supported, assume we need to request
         console.log('Permissions API not available, will request on first use');
       }

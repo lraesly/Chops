@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
  * Shared hook for item editing, filtering, and stats calculation
  * Used by both PracticeItems and ItemsManager components
  */
-export function useItemEditing({ items, sessions, onItemsChange, userTags, onAddTag }) {
+export function useItemEditing({ items, sessions, onItemsChange }) {
   // New item form state
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState(null);
@@ -49,7 +49,7 @@ export function useItemEditing({ items, sessions, onItemsChange, userTags, onAdd
     });
   }, [items, filterCategory, filterTags]);
 
-  const addItem = useCallback((autoAddToSession) => {
+  const addItem = useCallback(() => {
     if (newItemName.trim()) {
       const newItem = {
         id: Date.now().toString(),

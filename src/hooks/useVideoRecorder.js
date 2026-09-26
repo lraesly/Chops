@@ -232,7 +232,6 @@ export function useVideoRecorder() {
     setIsPaused(false);
     setElapsed(0);
     timerRef.current = setInterval(() => setElapsed(takeElapsed()), 200);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pauseRecording = useCallback(() => {
@@ -244,7 +243,6 @@ export function useVideoRecorder() {
     take.segmentStart = null;
     setElapsed(take.recordedMs);
     setIsPaused(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resumeRecording = useCallback(() => {
@@ -302,6 +300,8 @@ export function useVideoRecorder() {
     setIsRecording(false);
     setIsPaused(false);
     releaseStream();
+    // releaseStream only touches refs and state setters, so the first one is always valid
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => close, [close]);

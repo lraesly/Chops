@@ -65,7 +65,7 @@ export function PracticeItems({
     // Attachment handlers
     handleAddAttachment,
     handleDeleteAttachment,
-  } = useItemEditing({ items, sessions, onItemsChange, userTags, onAddTag });
+  } = useItemEditing({ items, sessions, onItemsChange });
 
   // Check if item is in current session
   const isItemInSession = (itemId) => {

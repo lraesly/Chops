@@ -7,7 +7,6 @@ import {
   readDataFromFile,
   writeDataToFile,
   isTauri,
-  clearStoragePath,
 } from '../hooks/useFileStorage';
 import { getVideoFolder, getDefaultVideoFolder, setVideoFolder, pickVideoFolder, openVideoFolder, revealLabel } from '../hooks/videoStorage';
 import { ConfirmDialog } from './ConfirmDialog';

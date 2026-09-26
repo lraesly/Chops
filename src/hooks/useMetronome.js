@@ -16,7 +16,7 @@ export function useMetronome() {
       audioContextRef.current.onstatechange = null;
       try {
         audioContextRef.current.close();
-      } catch (e) {
+      } catch {
         // Ignore errors when closing
       }
     }
@@ -164,7 +164,7 @@ export function useMetronome() {
         audioContextRef.current.onstatechange = null;
         try {
           audioContextRef.current.close();
-        } catch (e) {
+        } catch {
           // Ignore errors when closing
         }
       }
@@ -176,12 +176,12 @@ export function useMetronome() {
   }, [ensureAudioContext]);
 
   // Restart metronome when BPM changes (if currently playing)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isPlaying) {
       stop();
       start();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bpm]); // Intentionally only depends on bpm - we want to restart only when tempo changes
 
   return {

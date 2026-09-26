@@ -24,11 +24,11 @@ export const RecordButton = forwardRef(function RecordButton({ onSaveRecording, 
     }
   };
 
-  // Expose toggle function to parent via ref
+  // Expose toggle function to parent via ref (rebuilt each render so it never goes stale)
   useImperativeHandle(ref, () => ({
     toggle: handleToggleRecording,
     isRecording,
-  }), [disabled, isRecording]);
+  }));
 
   const handlePlayPause = () => {
     if (audioRef.current) {

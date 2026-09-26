@@ -60,6 +60,8 @@ export function AttachmentModal({ isOpen, onClose, onSave }) {
     }
 
     const attachment = {
+      // handleSave only runs from a click, not during render
+      // eslint-disable-next-line react-hooks/purity
       id: Date.now().toString(),
       type: attachmentType,
       name: name.trim(),

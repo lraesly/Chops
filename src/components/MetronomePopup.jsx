@@ -29,14 +29,6 @@ export const MetronomePopup = forwardRef(function MetronomePopup({ metronome: ex
   const { bpm, setBpm, isPlaying, toggle, stop } = externalMetronome || internalMetronome;
   const [isOpen, setIsOpen] = useState(false);
 
-  // Expose methods to parent via ref
-  useImperativeHandle(ref, () => ({
-    toggle: handleIconClick,  // Same behavior as clicking the icon
-    open: () => setIsOpen(true),
-    close: handleClose,
-    isOpen,
-  }), [isOpen, isPlaying]);
-
   const handleIconClick = () => {
     if (isOpen && isPlaying) {
       // If popup is open and playing, stop and close
@@ -57,6 +49,14 @@ export const MetronomePopup = forwardRef(function MetronomePopup({ metronome: ex
     }
     setIsOpen(false);
   };
+
+  // Expose methods to parent via ref (rebuilt each render so it never holds stale handlers)
+  useImperativeHandle(ref, () => ({
+    toggle: handleIconClick,  // Same behavior as clicking the icon
+    open: () => setIsOpen(true),
+    close: handleClose,
+    isOpen,
+  }));
 
   return (
     <>

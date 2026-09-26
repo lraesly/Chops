@@ -1,6 +1,23 @@
 import { useRef, useEffect } from 'react';
 import { Bold, Italic, Underline, List, ListOrdered } from 'lucide-react';
 
+function ToolbarButton({ onClick, active, children, title }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`p-1.5 rounded transition-colors ${
+        active
+          ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+          : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function RichTextEditor({ value, onChange, placeholder }) {
   const editorRef = useRef(null);
 
@@ -8,6 +25,8 @@ export function RichTextEditor({ value, onChange, placeholder }) {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
       editorRef.current.innerHTML = value || '';
     }
+    // Seed the editor once; re-syncing on every change would reset the caret while typing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleInput = () => {
@@ -29,21 +48,6 @@ export function RichTextEditor({ value, onChange, placeholder }) {
       execCommand('insertHTML', '&nbsp;&nbsp;&nbsp;&nbsp;');
     }
   };
-
-  const ToolbarButton = ({ onClick, active, children, title }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={`p-1.5 rounded transition-colors ${
-        active
-          ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
-          : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-      }`}
-    >
-      {children}
-    </button>
-  );
 
   return (
     <div className="border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden bg-white dark:bg-gray-700">

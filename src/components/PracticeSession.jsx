@@ -121,7 +121,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
   const currentItem = getEnrichedItem(currentSessionItem);
   const shouldAutoStartRef = useRef(false);
 
-  // Expose functions to parent via ref
+  // Expose functions to parent via ref (rebuilt each render so handlers are never stale)
   useImperativeHandle(ref, () => ({
     toggleTimer: () => {
       if (currentItem) {
@@ -137,7 +137,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
     openVideoRecorder: () => {
       if (sessionStarted && isTauri()) setShowVideoRecorder(true);
     },
-  }), [currentItem, sessionTimer.isRunning, sessionItems.length, sessionTimer.time, sessionStarted]);
+  }));
 
   // Save item time when switching items (but don't pause session timer)
   useEffect(() => {
@@ -163,6 +163,9 @@ export const PracticeSession = forwardRef(function PracticeSession({
       shouldAutoStartRef.current = false;
       itemTimer.start();
     }
+    // Runs only when the selected item changes; the timers and item data it reads
+    // change every tick, and re-running on those would reset the item timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentItemIndex]);
 
   // Sync item time periodically while running
@@ -206,6 +209,8 @@ export const PracticeSession = forwardRef(function PracticeSession({
       sessionTimer.pause();
       itemTimer.pause();
     }
+    // The timer objects are new every render; only these two values matter here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionItems.length, sessionTimer.isRunning]);
 
   const moveItem = (index, direction) => {
@@ -239,17 +244,6 @@ export const PracticeSession = forwardRef(function PracticeSession({
     }
   };
 
-  const handleSelectItem = (index) => {
-    // Save current item time before switching
-    if (currentItem) {
-      onUpdateSessionItemTime(currentItemIndex, itemTimer.time);
-    }
-    // Pause current item timer
-    if (itemTimer.isRunning) {
-      itemTimer.pause();
-    }
-    setCurrentItemIndex(index);
-  };
 
   const handleStartItem = (index) => {
     // Save current item time before switching
@@ -450,11 +444,6 @@ export const PracticeSession = forwardRef(function PracticeSession({
     }
     setShowResetConfirm(false);
   };
-
-  // Filter recordings for current item using sessionInstanceId
-  const currentItemRecordings = currentItem
-    ? recordings.filter((r) => r.sessionInstanceId === currentItem.sessionInstanceId)
-    : [];
 
   return (
     <div className="space-y-4">

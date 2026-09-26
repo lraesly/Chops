@@ -123,7 +123,6 @@ export const migrateEmbeddedAudio = async (recordings) => {
 // Swaps the inline audio for the file path on any recording that was migrated
 export const applyMigratedPaths = (recording, paths) => {
   if (!hasEmbeddedAudio(recording) || !paths[recording.id]) return recording;
-  // eslint-disable-next-line no-unused-vars
   const { audio, ...rest } = recording;
   return { ...rest, type: 'audio', filePath: paths[recording.id] };
 };
