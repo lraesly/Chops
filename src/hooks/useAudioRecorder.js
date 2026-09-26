@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { encodeWav } from '../constants/wav';
 
 const MIME_TYPES = [
   'audio/webm;codecs=opus',
@@ -8,6 +9,45 @@ const MIME_TYPES = [
   'audio/ogg',
   'audio/wav',
 ];
+
+// A take whose quieter channel is this far below the louder one (-40 dB) came from a
+// one-sided source, such as an interface with the guitar on input 1 only
+const ONE_SIDED_RATIO = 0.01;
+
+// Recording goes straight from the mic to MediaRecorder: routing it through Web Audio
+// to mix down to mono caused brief dropouts, because Web Audio runs on the output
+// device's clock. Instead, a take with sound on only one side is turned into a
+// centered mono WAV after recording; everything else keeps the original file.
+export async function centerOneSidedTake(blob) {
+  // Decode at 48 kHz, the rate recordings are made at, so nothing is resampled
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let context;
+  try {
+    context = new AudioCtx({ sampleRate: 48000 });
+  } catch {
+    context = new AudioCtx();
+  }
+  try {
+    const buffer = await context.decodeAudioData(await blob.arrayBuffer());
+    if (buffer.numberOfChannels < 2) return null;
+    const rms = (data) => {
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+      return Math.sqrt(sum / data.length);
+    };
+    const left = buffer.getChannelData(0);
+    const right = buffer.getChannelData(1);
+    const [l, r] = [rms(left), rms(right)];
+    const louder = Math.max(l, r);
+    if (louder === 0 || Math.min(l, r) / louder > ONE_SIDED_RATIO) return null;
+    return encodeWav([l >= r ? left : right], buffer.sampleRate);
+  } catch (error) {
+    console.error('Could not check the take for one-sided audio:', error);
+    return null;
+  } finally {
+    context.close().catch(() => {});
+  }
+}
 
 function getSupportedMimeType() {
   for (const mimeType of MIME_TYPES) {
@@ -27,7 +67,6 @@ export function useAudioRecorder() {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const streamRef = useRef(null);
-  const audioContextRef = useRef(null);
 
   // Check and monitor microphone permission status
   useEffect(() => {
@@ -75,37 +114,13 @@ export function useAudioRecorder() {
       const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
       streamRef.current = stream;
 
-      // Use AudioContext to explicitly mix to mono
-      // This ensures centered playback regardless of source channel configuration
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      audioContextRef.current = audioContext;
-
-      const source = audioContext.createMediaStreamSource(stream);
-
-      // Create a mono destination (1 channel)
-      const destination = audioContext.createMediaStreamDestination();
-
-      // Create a channel merger to mix all input channels to mono
-      // We'll use a gain node connected to a single-channel destination
-      const splitter = audioContext.createChannelSplitter(2);
-      const merger = audioContext.createChannelMerger(1);
-
-      source.connect(splitter);
-      // Mix both channels (or just left if mono) into a single output
-      splitter.connect(merger, 0, 0); // Left channel to output
-      splitter.connect(merger, 1, 0); // Right channel to same output (mixes)
-      merger.connect(destination);
-
-      // Use the mono stream for recording
-      const monoStream = destination.stream;
-
       const supportedMimeType = getSupportedMimeType();
 
       const options = {
         ...(supportedMimeType && { mimeType: supportedMimeType }),
         audioBitsPerSecond: 320000, // 320 kbps for better quality
       };
-      mediaRecorderRef.current = new MediaRecorder(monoStream, options);
+      mediaRecorderRef.current = new MediaRecorder(stream, options);
 
       const actualMimeType = mediaRecorderRef.current.mimeType || 'audio/webm';
       setMimeType(actualMimeType);
@@ -118,17 +133,14 @@ export function useAudioRecorder() {
         }
       };
 
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: actualMimeType });
+      mediaRecorderRef.current.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        const recorded = new Blob(chunksRef.current, { type: actualMimeType });
+        const centered = await centerOneSidedTake(recorded);
+        const blob = centered || recorded;
+        setMimeType(centered ? 'audio/wav' : actualMimeType);
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
-
-        // Clean up
-        stream.getTracks().forEach(track => track.stop());
-        if (audioContextRef.current) {
-          audioContextRef.current.close();
-          audioContextRef.current = null;
-        }
       };
 
       mediaRecorderRef.current.start(1000);

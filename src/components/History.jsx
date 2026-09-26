@@ -6,6 +6,7 @@ import { VideoPlayerModal } from './VideoPlayerModal';
 import { revealVideoFile, revealLabel } from '../hooks/videoStorage';
 import { loadRecordingBlob } from '../hooks/audioStorage';
 import { isTauri } from '../hooks/useFileStorage';
+import { audioBufferToWav } from '../constants/wav';
 import { useRecordingPlayer } from '../hooks/useRecordingPlayer';
 import { isHtmlNotes, sanitizeNotesHtml, notesToText } from '../constants/notes';
 
@@ -74,61 +75,6 @@ export function History({ sessions, onDeleteSession, onCopyToSession }) {
       alert('Failed to export recording. Please try again.');
     }
   };
-
-  // Convert AudioBuffer to WAV blob
-  function audioBufferToWav(audioBuffer) {
-    const numChannels = audioBuffer.numberOfChannels;
-    const sampleRate = audioBuffer.sampleRate;
-    const format = 1; // PCM
-    const bitDepth = 16;
-
-    const bytesPerSample = bitDepth / 8;
-    const blockAlign = numChannels * bytesPerSample;
-
-    const samples = audioBuffer.length;
-    const dataSize = samples * blockAlign;
-    const buffer = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(buffer);
-
-    // WAV header
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true); // fmt chunk size
-    view.setUint16(20, format, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * blockAlign, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitDepth, true);
-    writeString(view, 36, 'data');
-    view.setUint32(40, dataSize, true);
-
-    // Write audio data
-    const channelData = [];
-    for (let i = 0; i < numChannels; i++) {
-      channelData.push(audioBuffer.getChannelData(i));
-    }
-
-    let offset = 44;
-    for (let i = 0; i < samples; i++) {
-      for (let channel = 0; channel < numChannels; channel++) {
-        const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
-        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-        view.setInt16(offset, intSample, true);
-        offset += 2;
-      }
-    }
-
-    return new Blob([buffer], { type: 'audio/wav' });
-  }
-
-  function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
-  }
 
   const sortedSessions = [...sessions].sort(
     (a, b) => new Date(b.date) - new Date(a.date)

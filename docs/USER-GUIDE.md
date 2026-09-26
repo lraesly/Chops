@@ -89,7 +89,7 @@ In the Recordings list:
 - **▶** plays a recording.
 - The **trash icon** deletes it after asking. The file goes to the Trash, so you can get it back.
 
-Audio is recorded in mono, without echo cancellation, noise suppression or automatic gain. The first time you record, macOS asks for microphone access.
+Audio is recorded straight from your input, without echo cancellation, noise suppression or automatic gain. If a take has sound on only one side (for example an interface with your guitar on input 1), Chops saves it as a centered mono WAV so it doesn't play from one speaker. The first time you record, macOS asks for microphone access.
 
 To keep a copy outside Chops, use **Export WAV** on the recording in [History](#history); Chops asks where to save it.
 
