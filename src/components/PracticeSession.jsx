@@ -89,6 +89,8 @@ export const PracticeSession = forwardRef(function PracticeSession({
   // Initialize sessionStarted from props to avoid render gap when switching tabs
   const [sessionStarted, setSessionStarted] = useState(() => initialSessionTime > 0 || sessionItems.length > 0);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  // Resolves a pending saveSessionAndWait() once the Session Saved summary is dismissed
+  const confirmationClosedRef = useRef(null);
   const [savedSessionInfo, setSavedSessionInfo] = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   // Inline editing of an item's time (only allowed while the session is paused)
@@ -131,6 +133,15 @@ export const PracticeSession = forwardRef(function PracticeSession({
     },
     isRunning: sessionTimer.isRunning,
     saveSession: handleSaveSession,
+    // Save & Quit: save, then resolve when the user dismisses the Session Saved summary
+    saveSessionAndWait: () => new Promise((resolve) => {
+      if (sessionItems.length === 0 || sessionTimer.time === 0) {
+        resolve();
+        return;
+      }
+      confirmationClosedRef.current = resolve;
+      handleSaveSession();
+    }),
     canSave: sessionItems.length > 0 && sessionTimer.time > 0,
     toggleRecording: () => recordButtonRef.current?.toggle(),
     isRecording: recordButtonRef.current?.isRecording,
@@ -844,7 +855,11 @@ export const PracticeSession = forwardRef(function PracticeSession({
             )}
 
             <button
-              onClick={() => setShowConfirmation(false)}
+              onClick={() => {
+                setShowConfirmation(false);
+                confirmationClosedRef.current?.();
+                confirmationClosedRef.current = null;
+              }}
               className="w-full px-4 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium"
             >
               Continue

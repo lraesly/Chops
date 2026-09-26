@@ -74,40 +74,48 @@ function AppContent({ isTauri, resetStorage }) {
   // Metronome state (lifted to App for keyboard shortcut access)
   const metronome = useMetronome();
 
-  // Listen for menu events from Tauri
+  // Listen for menu events from Tauri. Registered once: re-registering on every render
+  // could leave an old listener behind (listen() is async), so actions such as Quit
+  // ran twice. Current view and metronome are read through a ref instead.
+  const menuStateRef = useRef({ currentView, metronome });
+  useEffect(() => {
+    menuStateRef.current = { currentView, metronome };
+  });
   useEffect(() => {
     let unlisten;
+    let cancelled = false;
     listen('menu-action', async (event) => {
       const action = event.payload;
+      const { currentView: view, metronome: met } = menuStateRef.current;
       if (action === 'quit') {
         if (await prepareToQuitRef.current()) {
           await invoke('quit_app');
         }
       } else if (action === 'help_shortcuts') {
         setShowHelpModal(true);
-      } else if (action === 'metronome_toggle' && currentView === 'practice') {
+      } else if (action === 'metronome_toggle' && view === 'practice') {
         practiceSessionRef.current?.toggleMetronomePopup?.();
-      } else if (action === 'metronome_play' && currentView === 'practice') {
-        metronome.toggle();
-      } else if (action === 'metronome_tempo_down' && currentView === 'practice') {
-        const currentBpm = metronome.bpm;
+      } else if (action === 'metronome_play' && view === 'practice') {
+        met.toggle();
+      } else if (action === 'metronome_tempo_down' && view === 'practice') {
         const presets = [80, 100, 120, 140, 160, 180];
-        const prevPreset = [...presets].reverse().find(p => p < currentBpm);
-        if (prevPreset) metronome.setBpm(prevPreset);
-      } else if (action === 'metronome_tempo_up' && currentView === 'practice') {
-        const currentBpm = metronome.bpm;
+        const prevPreset = [...presets].reverse().find(p => p < met.bpm);
+        if (prevPreset) met.setBpm(prevPreset);
+      } else if (action === 'metronome_tempo_up' && view === 'practice') {
         const presets = [80, 100, 120, 140, 160, 180];
-        const nextPreset = presets.find(p => p > currentBpm);
-        if (nextPreset) metronome.setBpm(nextPreset);
+        const nextPreset = presets.find(p => p > met.bpm);
+        if (nextPreset) met.setBpm(nextPreset);
       }
     }).then((unlistenFn) => {
-      unlisten = unlistenFn;
+      if (cancelled) unlistenFn();
+      else unlisten = unlistenFn;
     });
 
     return () => {
+      cancelled = true;
       if (unlisten) unlisten();
     };
-  }, [currentView, metronome]);
+  }, []);
 
   // Before the window closes or the app quits (⌘Q): offer to save a session that has
   // something to save. Just quitting keeps the session (queue, times, notes and
@@ -126,19 +134,34 @@ function AppContent({ isTauri, resetStorage }) {
           buttons: { yes: SAVE_AND_QUIT, no: JUST_QUIT, cancel: 'Cancel' },
         }
       );
-      if (choice === SAVE_AND_QUIT || choice === 'Yes') {
-        session.saveSession();
-      } else if (choice === JUST_QUIT || choice === 'No') {
-        session.persistProgress();
-      } else {
-        return false;
+      if (choice !== SAVE_AND_QUIT && choice !== 'Yes' && choice !== JUST_QUIT && choice !== 'No') {
+        return false; // Cancel or Esc
+      }
+      try {
+        if (choice === SAVE_AND_QUIT || choice === 'Yes') {
+          // Shows the usual Session Saved summary; quit once it's dismissed
+          await session.saveSessionAndWait();
+        } else {
+          session.persistProgress();
+        }
+      } catch (err) {
+        console.error('Could not store the session before quitting:', err);
       }
     } else {
-      session?.persistProgress();
+      try {
+        session?.persistProgress();
+      } catch (err) {
+        console.error('Could not store session progress before quitting:', err);
+      }
     }
-    // Let React commit the state changes and queue their writes, then write them now
+    // Let React commit the state changes and queue their writes, then write them now.
+    // Never let a failed or slow write stop the app from quitting.
     await new Promise((resolve) => setTimeout(resolve, 200));
-    await flushWrites();
+    try {
+      await Promise.race([flushWrites(), new Promise((resolve) => setTimeout(resolve, 5000))]);
+    } catch (err) {
+      console.error('Could not flush writes before quitting:', err);
+    }
     return true;
   };
   const prepareToQuitRef = useRef(prepareToQuit);
@@ -148,16 +171,21 @@ function AppContent({ isTauri, resetStorage }) {
 
   useEffect(() => {
     let unlistenClose;
+    let cancelled = false;
 
     const setupCloseHandler = async () => {
       try {
         const appWindow = getCurrentWindow();
-        unlistenClose = await appWindow.onCloseRequested(async (event) => {
+        const unlisten = await appWindow.onCloseRequested(async (event) => {
           event.preventDefault();
           if (await prepareToQuitRef.current()) {
-            await appWindow.destroy();
+            // Quit through our own command: the window API needs a destroy permission
+            // this app doesn't grant, so appWindow.destroy() silently did nothing
+            await invoke('quit_app');
           }
         });
+        if (cancelled) unlisten();
+        else unlistenClose = unlisten;
       } catch (e) {
         // Not running in Tauri, ignore
         console.log('Close handler not available:', e);
@@ -167,6 +195,7 @@ function AppContent({ isTauri, resetStorage }) {
     setupCloseHandler();
 
     return () => {
+      cancelled = true;
       if (unlistenClose) unlistenClose();
     };
   }, []);
