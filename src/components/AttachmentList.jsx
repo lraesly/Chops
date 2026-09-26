@@ -1,12 +1,12 @@
 import { FileText, Link as LinkIcon, ExternalLink, Trash2 } from 'lucide-react';
-import { open } from '@tauri-apps/plugin-shell';
+import { openLink } from '../hooks/todoInbox';
 
 export function AttachmentList({ attachments = [], onDelete, compact = false }) {
   if (attachments.length === 0) return null;
 
   const handleOpen = async (attachment) => {
     if (attachment.type === 'link') {
-      await open(attachment.url);
+      await openLink(attachment.url);
     } else if (attachment.type === 'pdf') {
       const { writeFile } = await import('@tauri-apps/plugin-fs');
       const { tempDir } = await import('@tauri-apps/api/path');

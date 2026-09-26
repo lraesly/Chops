@@ -7,6 +7,7 @@ import { ChopsIcon } from './components/ChopsIcon';
 import { useFileStorage, useStorageSetup, flushWrites } from './hooks/useFileStorage';
 import { migrateEmbeddedAudio, applyMigratedPaths, hasEmbeddedAudio } from './hooks/audioStorage';
 import { trashFile } from './hooks/videoStorage';
+import { readTodoInbox, clearTodoInboxFiles, isWebLink } from './hooks/todoInbox';
 import { useKeyboardShortcuts, useSpacebarToggle } from './hooks/useKeyboardShortcuts';
 import { useMetronome } from './hooks/useMetronome';
 import { Navigation } from './components/Navigation';
@@ -61,8 +62,8 @@ function AppContent({ isTauri, resetStorage }) {
   const [sessionNotes, setSessionNotes, sessionNotesLoaded] = useFileStorage('sessionNotes', '');
   const [sessionTotalTime, setSessionTotalTime] = useFileStorage('sessionTotalTime', 0);
   const [userTags, setUserTags] = useFileStorage('userTags', []);
-  const [todoItems, setTodoItems] = useFileStorage('todoItems', []);
-  const [archivedTodoItems, setArchivedTodoItems] = useFileStorage('archivedTodoItems', []);
+  const [todoItems, setTodoItems, todosLoaded] = useFileStorage('todoItems', []);
+  const [archivedTodoItems, setArchivedTodoItems, archivedTodosLoaded] = useFileStorage('archivedTodoItems', []);
   const [practiceTemplates, setPracticeTemplates] = useFileStorage('practiceTemplates', []);
   const [colorTheme, setColorTheme] = useFileStorage('colorTheme', 'violet');
   const [hasSeenWelcome, setHasSeenWelcome] = useFileStorage('hasSeenWelcome', false);
@@ -360,6 +361,61 @@ function AppContent({ isTauri, resetStorage }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTauri, allDataLoaded]);
 
+  // Pick up to-dos that other tools dropped in the "To Do Inbox" folder (see
+  // todoInbox.js): on launch and whenever the window regains focus. Inbox files go
+  // to the Trash only after the imported to-dos have been written to the data file.
+  const todoListsRef = useRef({ todoItems, archivedTodoItems });
+  useEffect(() => {
+    todoListsRef.current = { todoItems, archivedTodoItems };
+  });
+  const inboxBusyRef = useRef(false);
+  const inboxFilesToClearRef = useRef([]);
+  useEffect(() => {
+    if (!isTauri || !todosLoaded || !archivedTodosLoaded) return;
+    const checkInbox = async () => {
+      if (inboxBusyRef.current) return;
+      inboxBusyRef.current = true;
+      let waitingForSave = false;
+      try {
+        const { todos, files } = await readTodoInbox();
+        if (files.length === 0) return;
+        const { todoItems: active, archivedTodoItems: archived } = todoListsRef.current;
+        const known = new Set([...active, ...archived].map((t) => t.id));
+        const fresh = todos.filter((t) => !known.has(t.id) && known.add(t.id));
+        if (fresh.length === 0) {
+          await clearTodoInboxFiles(files);
+          return;
+        }
+        inboxFilesToClearRef.current = files;
+        waitingForSave = true;
+        setTodoItems((prev) => [...prev, ...fresh]);
+        const sources = [...new Set(fresh.map((t) => t.source).filter(Boolean))];
+        addToast(
+          `Added ${fresh.length} to-do${fresh.length === 1 ? '' : 's'}` +
+          (sources.length === 1 ? ` from ${sources[0]}` : '')
+        );
+      } catch (error) {
+        console.error('Could not read the to-do inbox:', error);
+      } finally {
+        if (!waitingForSave) inboxBusyRef.current = false;
+      }
+    };
+    checkInbox();
+    window.addEventListener('focus', checkInbox);
+    return () => window.removeEventListener('focus', checkInbox);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTauri, todosLoaded, archivedTodosLoaded]);
+  useEffect(() => {
+    const files = inboxFilesToClearRef.current;
+    if (files.length === 0) return;
+    inboxFilesToClearRef.current = [];
+    (async () => {
+      await flushWrites();
+      await clearTodoInboxFiles(files);
+      inboxBusyRef.current = false;
+    })();
+  }, [todoItems]);
+
   // Show loading state while file data loads
   if (isTauri && !allDataLoaded) {
     return (
@@ -589,13 +645,24 @@ function AppContent({ isTauri, resetStorage }) {
   };
 
   const handleMoveTodoToItems = (item) => {
+    // A to-do's link (e.g. the coach feedback it came from) carries over as an attachment
+    const attachments = item.link
+      ? [{
+          id: `${Date.now()}-link`,
+          type: 'link',
+          name: item.source
+            ? `${item.source}${item.sourceDate ? ` ${item.sourceDate}` : ''}`
+            : isWebLink(item.link) ? item.link : item.link.split(/[\\/]/).pop(),
+          url: item.link,
+        }]
+      : [];
     const newPracticeItem = {
       id: Date.now().toString(),
       name: item.name,
       createdAt: new Date().toISOString(),
       category: null,
       tags: [],
-      attachments: [],
+      attachments,
     };
     setPracticeItems(prev => [...prev, newPracticeItem]);
     setTodoItems(prev => prev.filter(i => i.id !== item.id));

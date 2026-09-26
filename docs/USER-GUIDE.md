@@ -182,6 +182,20 @@ A place for things you want to practice later.
 - **Archive** sets it aside; **Delete** removes it after asking.
 - The **Archived** tab lets you restore or delete archived ideas.
 
+**To-dos from other tools.** A to-do can also say where it came from, such as a teacher's feedback video. Those show a note, a label like *Daniel Seriff · Sep 24* and an **open** button that jumps to the source (a web page or a file). Once any to-do has a label, chips at the top filter the list by source (**Mine** shows the ones you typed). Moving one to practice items keeps its link as an attachment.
+
+Other tools add these by dropping a JSON file in the **To Do Inbox** folder inside your data folder. Chops picks it up when it starts or when you switch back to it, then moves the file to the Trash:
+
+```json
+{ "todos": [
+  { "id": "ic-2026-09-24-01", "name": "Loop the bend at 60 bpm",
+    "source": "Daniel Seriff", "sourceDate": "2026-09-24",
+    "note": "12:34 – let the wrist float", "link": "/path/to/feedback.html" }
+] }
+```
+
+Only `name` is required. A to-do whose `id` is already in your list (active or archived) is skipped, so re-sending a file is harmless.
+
 ---
 
 ## Templates

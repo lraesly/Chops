@@ -69,7 +69,7 @@ const guide = [
   },
   {
     title: 'Items, To Do and Templates',
-    body: 'Items is your practice library: categories, tags, and link or PDF attachments. To Do holds ideas for later; move one to Items when you\'re ready. Templates are saved queues, such as a warm-up; Load replaces the queue with one.',
+    body: 'Items is your practice library: categories, tags, and link or PDF attachments. To Do holds ideas for later; move one to Items when you\'re ready. To-dos added by other tools (via the To Do Inbox folder) show their source and a link back to it. Templates are saved queues, such as a warm-up; Load replaces the queue with one.',
   },
   {
     title: 'History and Stats',

@@ -1,6 +1,47 @@
 import { useState } from 'react';
-import { ListTodo, Plus, ArrowRightToLine, Archive, Trash2, RotateCcw } from 'lucide-react';
+import { ListTodo, Plus, ArrowRightToLine, Archive, Trash2, RotateCcw, ExternalLink } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
+import { openLink } from '../hooks/todoInbox';
+
+const MINE = '__mine__';
+
+// "2026-09-24" -> "Sep 24" (parsed as a local date so it doesn't shift a day)
+const formatSourceDate = (value) => {
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00` : value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+// Where a to-do came from (e.g. "Daniel Seriff · Sep 24"), plus its note and link
+function TodoDetails({ item }) {
+  if (!item.source && !item.note) return null;
+  return (
+    <>
+      {item.note && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{item.note}</p>
+      )}
+      {item.source && (
+        <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300">
+          {item.source}
+          {item.sourceDate && ` · ${formatSourceDate(item.sourceDate)}`}
+        </span>
+      )}
+    </>
+  );
+}
+
+function LinkButton({ item }) {
+  if (!item.link) return null;
+  return (
+    <button
+      onClick={() => openLink(item.link).catch((e) => console.error('Could not open link:', e))}
+      className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
+      title={`Open ${item.link}`}
+    >
+      <ExternalLink size={18} />
+    </button>
+  );
+}
 
 export function TodoList({
   todoItems,
@@ -14,6 +55,19 @@ export function TodoList({
   const [activeTab, setActiveTab] = useState('active');
   const [newTodoName, setNewTodoName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [sourceFilter, setSourceFilter] = useState(null);
+
+  // Filter chips appear once any active to-do has a source
+  const sources = [...new Set(todoItems.map((i) => i.source).filter(Boolean))].sort();
+  const activeFilter = sourceFilter === MINE || sources.includes(sourceFilter) ? sourceFilter : null;
+  const visibleTodos = activeFilter === null
+    ? todoItems
+    : todoItems.filter((i) => (activeFilter === MINE ? !i.source : i.source === activeFilter));
+  const filterChips = [
+    { value: null, label: 'All' },
+    ...sources.map((source) => ({ value: source, label: source })),
+    { value: MINE, label: 'Mine' },
+  ];
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -94,6 +148,25 @@ export function TodoList({
               </button>
             </form>
 
+            {/* Source filter */}
+            {sources.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {filterChips.map((chip) => (
+                  <button
+                    key={chip.label}
+                    onClick={() => setSourceFilter(chip.value)}
+                    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                      activeFilter === chip.value
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Items list */}
             <div className="space-y-2">
               {todoItems.length === 0 ? (
@@ -104,8 +177,12 @@ export function TodoList({
                     Jot down songs, techniques, or ideas to practice later
                   </p>
                 </div>
+              ) : visibleTodos.length === 0 ? (
+                <p className="text-center py-8 text-gray-400 dark:text-gray-500">
+                  Nothing here for this filter
+                </p>
               ) : (
-                todoItems.map((item) => (
+                visibleTodos.map((item) => (
                   <div
                     key={item.id}
                     className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
@@ -114,11 +191,13 @@ export function TodoList({
                       <h3 className="font-medium text-gray-800 dark:text-gray-200 truncate">
                         {item.name}
                       </h3>
+                      <TodoDetails item={item} />
                       <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                         Added {formatDate(item.createdAt)}
                       </p>
                     </div>
                     <div className="flex gap-1.5 shrink-0">
+                      <LinkButton item={item} />
                       <button
                         onClick={() => onMoveTodoToItems(item)}
                         className="p-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
@@ -170,11 +249,13 @@ export function TodoList({
                       <h3 className="font-medium text-gray-700 dark:text-gray-200 truncate">
                         {item.name}
                       </h3>
+                      <TodoDetails item={item} />
                       <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                         Archived {formatDate(item.archivedAt)}
                       </p>
                     </div>
                     <div className="flex gap-2 shrink-0">
+                      <LinkButton item={item} />
                       <button
                         onClick={() => onRestoreTodo(item)}
                         className="flex items-center gap-1 px-3 py-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/60 transition-colors text-sm"

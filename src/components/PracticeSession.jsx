@@ -8,7 +8,7 @@ import { VideoRecorderModal } from './VideoRecorderModal';
 import { isTauri } from '../hooks/useFileStorage';
 import { AttachmentList } from './AttachmentList';
 import { RichTextEditor } from './RichTextEditor';
-import { open } from '@tauri-apps/plugin-shell';
+import { openLink } from '../hooks/todoInbox';
 import { ConfirmDialog } from './ConfirmDialog';
 
 function useItemTimer() {
@@ -533,7 +533,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
                       key={attachment.id}
                       onClick={async () => {
                         if (attachment.type === 'link') {
-                          await open(attachment.url);
+                          await openLink(attachment.url);
                         } else if (attachment.type === 'pdf') {
                           const { writeFile } = await import('@tauri-apps/plugin-fs');
                           const { tempDir } = await import('@tauri-apps/api/path');
