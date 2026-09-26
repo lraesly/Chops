@@ -194,7 +194,7 @@ Other tools add these by dropping a JSON file in the **To Do Inbox** folder insi
 ] }
 ```
 
-Only `name` is required. A to-do whose `id` is already in your list (active or archived) is skipped, so re-sending a file is harmless.
+Only `name` is required. If a to-do with the same `id` is already in your active list, its details are updated; one you archived is left alone.
 
 ---
 

@@ -188,7 +188,7 @@ export function TodoList({
                     className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
                   >
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-800 dark:text-gray-200 truncate">
+                      <h3 className="font-medium text-gray-800 dark:text-gray-200 break-words">
                         {item.name}
                       </h3>
                       <TodoDetails item={item} />
@@ -246,7 +246,7 @@ export function TodoList({
                     className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
                   >
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-700 dark:text-gray-200 truncate">
+                      <h3 className="font-medium text-gray-700 dark:text-gray-200 break-words">
                         {item.name}
                       </h3>
                       <TodoDetails item={item} />

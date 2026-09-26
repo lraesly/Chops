@@ -379,21 +379,40 @@ function AppContent({ isTauri, resetStorage }) {
       try {
         const { todos, files } = await readTodoInbox();
         if (files.length === 0) return;
+        // A to-do already in the active list gets its details refreshed (e.g. a new link);
+        // one that's archived is left alone.
         const { todoItems: active, archivedTodoItems: archived } = todoListsRef.current;
+        const activeIds = new Set(active.map((t) => t.id));
         const known = new Set([...active, ...archived].map((t) => t.id));
-        const fresh = todos.filter((t) => !known.has(t.id) && known.add(t.id));
-        if (fresh.length === 0) {
+        const updates = new Map();
+        const fresh = [];
+        for (const todo of todos) {
+          if (activeIds.has(todo.id)) updates.set(todo.id, todo);
+          else if (!known.has(todo.id)) {
+            known.add(todo.id);
+            fresh.push(todo);
+          }
+        }
+        if (fresh.length === 0 && updates.size === 0) {
           await clearTodoInboxFiles(files);
           return;
         }
         inboxFilesToClearRef.current = files;
         waitingForSave = true;
-        setTodoItems((prev) => [...prev, ...fresh]);
-        const sources = [...new Set(fresh.map((t) => t.source).filter(Boolean))];
-        addToast(
-          `Added ${fresh.length} to-do${fresh.length === 1 ? '' : 's'}` +
-          (sources.length === 1 ? ` from ${sources[0]}` : '')
-        );
+        setTodoItems((prev) => [
+          ...prev.map((t) => {
+            if (!updates.has(t.id)) return t;
+            const { id, createdAt, ...details } = updates.get(t.id);
+            return { id: t.id, name: details.name, createdAt: t.createdAt, ...details };
+          }),
+          ...fresh,
+        ]);
+        const changed = [...fresh, ...updates.values()];
+        const sources = [...new Set(changed.map((t) => t.source).filter(Boolean))];
+        const parts = [];
+        if (fresh.length) parts.push(`Added ${fresh.length} to-do${fresh.length === 1 ? '' : 's'}`);
+        if (updates.size) parts.push(`${fresh.length ? 'updated' : 'Updated'} ${updates.size}`);
+        addToast(parts.join(', ') + (sources.length === 1 ? ` from ${sources[0]}` : ''));
       } catch (error) {
         console.error('Could not read the to-do inbox:', error);
       } finally {
