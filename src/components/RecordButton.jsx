@@ -1,6 +1,7 @@
 import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Mic, Square, Play, Pause, Save, Trash2, X } from 'lucide-react';
-import { useAudioRecorder, blobToBase64 } from '../hooks/useAudioRecorder';
+import { useAudioRecorder } from '../hooks/useAudioRecorder';
+import { createAudioRecording } from '../hooks/audioStorage';
 
 export const RecordButton = forwardRef(function RecordButton({ onSaveRecording, sessionInstanceId, disabled }, ref) {
   const { isRecording, audioUrl, toggleRecording, clearRecording, audioBlob, mimeType } =
@@ -42,15 +43,20 @@ export const RecordButton = forwardRef(function RecordButton({ onSaveRecording, 
 
   const handleSave = async () => {
     if (audioBlob && recordingName.trim()) {
-      const base64 = await blobToBase64(audioBlob);
-      onSaveRecording({
-        id: Date.now().toString(),
-        name: recordingName.trim(),
-        audio: base64,
-        mimeType: mimeType,
-        sessionInstanceId,
-        createdAt: new Date().toISOString(),
-      });
+      let recording;
+      try {
+        recording = await createAudioRecording({
+          blob: audioBlob,
+          mimeType,
+          name: recordingName.trim(),
+          sessionInstanceId,
+        });
+      } catch (error) {
+        console.error('Error saving recording:', error);
+        alert(`Could not save the recording: ${error.message || error}`);
+        return;
+      }
+      onSaveRecording(recording);
       handleClose();
     }
   };

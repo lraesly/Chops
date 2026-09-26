@@ -11,6 +11,7 @@ const shortcuts = [
       { keys: ['Space'], description: 'Start/Pause timer' },
       { keys: [cmdKey, 'S'], description: 'Save session' },
       { keys: ['R'], description: 'Start/Stop recording (when timer running)' },
+      { keys: ['V'], description: 'Record video (when timer running); in the video window Space starts/stops, P pauses' },
     ],
   },
   {

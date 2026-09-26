@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { FolderOpen, Download, Upload, HardDrive, Check, AlertCircle, RotateCcw, Palette, Trash2, AlertTriangle, Tag, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { FolderOpen, Download, Upload, HardDrive, Check, AlertCircle, RotateCcw, Palette, Trash2, AlertTriangle, Tag, X, Video } from 'lucide-react';
 import {
   getStoragePath,
   setStoragePath,
@@ -9,6 +9,8 @@ import {
   isTauri,
   clearStoragePath,
 } from '../hooks/useFileStorage';
+import { getVideoFolder, getDefaultVideoFolder, setVideoFolder, pickVideoFolder, openVideoFolder, revealLabel } from '../hooks/videoStorage';
+import { ConfirmDialog } from './ConfirmDialog';
 
 const THEMES = [
   { id: 'violet', name: 'Purple Rain' },
@@ -47,6 +49,29 @@ export function Settings({
   const [endDate, setEndDate] = useState('');
   const fileInputRef = useRef(null);
   const inTauri = isTauri();
+  const [videoFolder, setVideoFolderState] = useState(null);
+  const [pendingLocation, setPendingLocation] = useState(null);
+  const [defaultVideoFolder, setDefaultVideoFolder] = useState(null);
+
+  useEffect(() => {
+    if (!inTauri) return;
+    getVideoFolder().then(setVideoFolderState);
+    getDefaultVideoFolder().then(setDefaultVideoFolder);
+  }, [inTauri]);
+
+  const handleChangeVideoFolder = async () => {
+    const selected = await pickVideoFolder();
+    if (!selected) return;
+    await setVideoFolder(selected);
+    setVideoFolderState(selected);
+    showMessage('Video folder updated. New videos will be saved there.');
+  };
+
+  const handleResetVideoFolder = async () => {
+    await setVideoFolder(null);
+    setVideoFolderState(defaultVideoFolder);
+    showMessage('Video folder reset to the default.');
+  };
 
   const showMessage = (text, type = 'success') => {
     setMessage({ text, type });
@@ -136,29 +161,34 @@ export function Settings({
   const handleChangeLocation = async () => {
     if (!inTauri) return;
 
+    const newPath = await pickStorageFolder();
+    if (newPath && newPath !== getStoragePath()) {
+      setPendingLocation(newPath);
+    }
+  };
+
+  // Copies the data file to the confirmed folder and switches Chops to it
+  const moveStorageLocation = async (newPath) => {
     setIsChangingLocation(true);
     try {
-      const newPath = await pickStorageFolder();
-      if (newPath) {
-        // Read current data
-        const oldPath = getStoragePath();
-        let currentData = {};
-        if (oldPath) {
-          currentData = await readDataFromFile(oldPath);
-          if (currentData === null) {
-            throw new Error('Current data file could not be read; not moving storage.');
-          }
+      // Read current data
+      const oldPath = getStoragePath();
+      let currentData = {};
+      if (oldPath) {
+        currentData = await readDataFromFile(oldPath);
+        if (currentData === null) {
+          throw new Error('Current data file could not be read; not moving storage.');
         }
-
-        // Write to new location
-        await writeDataToFile(newPath, currentData);
-
-        // Update stored path
-        await setStoragePath(newPath);
-        setCurrentPath(newPath);
-
-        showMessage('Storage location changed successfully!');
       }
+
+      // Write to new location
+      await writeDataToFile(newPath, currentData);
+
+      // Update stored path
+      await setStoragePath(newPath);
+      setCurrentPath(newPath);
+
+      showMessage('Storage location changed successfully!');
     } catch (error) {
       console.error('Error changing location:', error);
       showMessage('Failed to change storage location', 'error');
@@ -332,7 +362,7 @@ export function Settings({
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
               <FolderOpen size={18} />
-              {isChangingLocation ? 'Changing...' : 'Change Location'}
+              {isChangingLocation ? 'Moving...' : 'Change Data Location'}
             </button>
             {onResetStorage && (
               <button
@@ -342,6 +372,56 @@ export function Settings({
               >
                 <RotateCcw size={18} />
                 {isResetting ? 'Resetting...' : 'Reset Storage'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Video Folder (Tauri only) */}
+      {inTauri && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 md:p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg">
+              <Video size={20} className="text-primary-600 dark:text-primary-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-800 dark:text-white">Video Folder</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Where video recordings are saved. Existing videos stay where they are.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3 mb-4">
+            <p className="text-sm text-gray-700 dark:text-gray-300 break-all font-mono">
+              {videoFolder || '…'}
+            </p>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={handleChangeVideoFolder}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              <FolderOpen size={18} />
+              Change Video Folder
+            </button>
+            <button
+              onClick={() => openVideoFolder().catch((e) => showMessage(`Could not open the folder: ${e.message || e}`, 'error'))}
+              disabled={!videoFolder}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+            >
+              <FolderOpen size={18} />
+              {revealLabel}
+            </button>
+            {videoFolder && defaultVideoFolder && videoFolder !== defaultVideoFolder && (
+              <button
+                onClick={handleResetVideoFolder}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <RotateCcw size={18} />
+                Use Default
               </button>
             )}
           </div>
@@ -670,6 +750,15 @@ export function Settings({
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={!!pendingLocation}
+        onClose={() => setPendingLocation(null)}
+        onConfirm={() => moveStorageLocation(pendingLocation)}
+        title="Move Practice Data?"
+        message={`Chops will copy your practice data file to ${pendingLocation} and save there from now on. The copy in the current folder stays but will no longer be updated. (Video recordings have their own folder setting below.)`}
+        confirmText="Move Data"
+        variant="warning"
+      />
     </div>
   );
 }

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { Play, Pause, RotateCcw, X, ChevronUp, ChevronDown, Save, FileText, Timer, CheckCircle, TrendingUp, Calendar, Flame, Paperclip, Link as LinkIcon, Plus, Pencil, BookmarkPlus } from 'lucide-react';
+import { Play, Pause, RotateCcw, X, ChevronUp, ChevronDown, Save, FileText, Timer, CheckCircle, TrendingUp, Calendar, Flame, Paperclip, Link as LinkIcon, Plus, Pencil, BookmarkPlus, Video } from 'lucide-react';
 import { useTimer, formatTime, parseTimeInput } from '../hooks/useTimer';
 import { MetronomePopup } from './MetronomePopup';
 import { RecordButton } from './RecordButton';
 import { RecordingsList } from './AudioRecorder';
+import { VideoRecorderModal } from './VideoRecorderModal';
+import { isTauri } from '../hooks/useFileStorage';
 import { AttachmentList } from './AttachmentList';
 import { RichTextEditor } from './RichTextEditor';
 import { open } from '@tauri-apps/plugin-shell';
@@ -98,6 +100,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
   const [templateName, setTemplateName] = useState('');
   const prevItemIndexRef = useRef(null);
   const recordButtonRef = useRef(null);
+  const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   const metronomePopupRef = useRef(null);
 
   // Helper to get the current/full item data by looking up from practiceItems or archivedItems
@@ -131,7 +134,10 @@ export const PracticeSession = forwardRef(function PracticeSession({
     toggleRecording: () => recordButtonRef.current?.toggle(),
     isRecording: recordButtonRef.current?.isRecording,
     toggleMetronomePopup: () => metronomePopupRef.current?.toggle(),
-  }), [currentItem, sessionTimer.isRunning, sessionItems.length, sessionTimer.time]);
+    openVideoRecorder: () => {
+      if (sessionStarted && isTauri()) setShowVideoRecorder(true);
+    },
+  }), [currentItem, sessionTimer.isRunning, sessionItems.length, sessionTimer.time, sessionStarted]);
 
   // Save item time when switching items (but don't pause session timer)
   useEffect(() => {
@@ -462,6 +468,20 @@ export const PracticeSession = forwardRef(function PracticeSession({
             sessionInstanceId={currentItem?.sessionInstanceId}
             disabled={!sessionStarted}
           />
+          {isTauri() && (
+            <button
+              onClick={() => setShowVideoRecorder(true)}
+              disabled={!sessionStarted}
+              className={`p-2 rounded-full transition-all ${
+                !sessionStarted
+                  ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+              title={sessionStarted ? 'Record video (V)' : 'Start session to record'}
+            >
+              <Video size={24} />
+            </button>
+          )}
           <div className="relative">
             <MetronomePopup ref={metronomePopupRef} metronome={metronome} />
           </div>
@@ -760,7 +780,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Recordings</h3>
         {recordings.length === 0 ? (
           <p className="text-gray-400 dark:text-gray-500 text-center py-4">
-            No recordings yet. Press the mic button on the timer to record.
+            No recordings yet. Press the mic or video button on the timer to record.
           </p>
         ) : (
           <RecordingsList
@@ -769,6 +789,15 @@ export const PracticeSession = forwardRef(function PracticeSession({
           />
         )}
       </div>
+
+      {showVideoRecorder && (
+        <VideoRecorderModal
+          onClose={() => setShowVideoRecorder(false)}
+          onSaveRecording={onSaveRecording}
+          sessionInstanceId={currentItem?.sessionInstanceId}
+          metronome={metronome}
+        />
+      )}
 
       {/* Session Saved Confirmation Modal */}
       {showConfirmation && savedSessionInfo && (

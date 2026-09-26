@@ -1,13 +1,17 @@
-import { useState, useRef } from 'react';
-import { Calendar, Clock, Music, Trash2, ChevronDown, ChevronUp, Play, Pause, FileText, Copy, Download } from 'lucide-react';
+import { useState } from 'react';
+import { Calendar, Clock, Music, Trash2, ChevronDown, ChevronUp, Play, Pause, FileText, Copy, Download, Video, FolderOpen } from 'lucide-react';
 import { formatTime } from '../hooks/useTimer';
 import { ConfirmDialog } from './ConfirmDialog';
+import { VideoPlayerModal } from './VideoPlayerModal';
+import { revealVideoFile, revealLabel } from '../hooks/videoStorage';
+import { loadRecordingBlob } from '../hooks/audioStorage';
+import { useRecordingPlayer } from '../hooks/useRecordingPlayer';
 
 export function History({ sessions, onDeleteSession, onCopyToSession }) {
   const [expandedSession, setExpandedSession] = useState(null);
-  const [playingRecording, setPlayingRecording] = useState(null);
+  const { playingId: playingRecording, toggle: handlePlayRecording, register, onEnded } = useRecordingPlayer();
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const audioRefs = useRef({});
+  const [openVideo, setOpenVideo] = useState(null);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -27,31 +31,9 @@ export function History({ sessions, onDeleteSession, onCopyToSession }) {
     });
   };
 
-  const handlePlayRecording = (recording) => {
-    if (playingRecording === recording.id) {
-      audioRefs.current[recording.id]?.pause();
-      setPlayingRecording(null);
-    } else {
-      if (playingRecording && audioRefs.current[playingRecording]) {
-        audioRefs.current[playingRecording].pause();
-      }
-      audioRefs.current[recording.id]?.play();
-      setPlayingRecording(recording.id);
-    }
-  };
-
   const handleExportRecording = async (recording) => {
     try {
-      // Convert base64 to blob
-      const base64Data = recording.audio;
-      const parts = base64Data.split(',');
-      const byteCharacters = atob(parts[1]);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: recording.mimeType || 'audio/webm' });
+      const blob = await loadRecordingBlob(recording);
 
       // Decode audio using AudioContext
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -275,17 +257,38 @@ export function History({ sessions, onDeleteSession, onCopyToSession }) {
                                 <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
                                   Recordings:
                                 </p>
-                                {session.recordings.map((recording) => (
+                                {session.recordings.map((recording) => recording.type === 'video' ? (
+                                  <div
+                                    key={recording.id}
+                                    className="flex items-center gap-2 py-2 px-3 bg-white dark:bg-gray-800 rounded-lg"
+                                  >
+                                    <button
+                                      onClick={() => setOpenVideo(recording)}
+                                      className="p-2 bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-900/60 transition-colors"
+                                      title="Play video"
+                                    >
+                                      <Video size={14} />
+                                    </button>
+                                    <span className="flex-1 text-gray-700 dark:text-gray-200 text-sm">
+                                      {recording.name}
+                                    </span>
+                                    <button
+                                      onClick={() => revealVideoFile(recording.filePath)}
+                                      className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                                      title={revealLabel}
+                                    >
+                                      <FolderOpen size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
                                   <div
                                     key={recording.id}
                                     className="flex items-center gap-2 py-2 px-3 bg-white dark:bg-gray-800 rounded-lg"
                                   >
                                     <audio
-                                      ref={(el) =>
-                                        (audioRefs.current[recording.id] = el)
-                                      }
+                                      ref={register(recording.id)}
                                       src={recording.audio}
-                                      onEnded={() => setPlayingRecording(null)}
+                                      onEnded={onEnded}
                                       className="hidden"
                                     />
                                     <button
@@ -325,12 +328,16 @@ export function History({ sessions, onDeleteSession, onCopyToSession }) {
         )}
       </div>
 
+      {openVideo && <VideoPlayerModal recording={openVideo} onClose={() => setOpenVideo(null)} />}
+
       <ConfirmDialog
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
         onConfirm={() => onDeleteSession(deleteConfirm.id)}
         title="Delete Session"
-        message={`Delete this practice session from ${deleteConfirm ? new Date(deleteConfirm.date).toLocaleDateString() : ''}? This action cannot be undone.`}
+        message={`Delete this practice session from ${deleteConfirm ? new Date(deleteConfirm.date).toLocaleDateString() : ''}? This action cannot be undone.${
+          deleteConfirm?.recordings?.some((r) => r.type !== 'video' && r.filePath) ? ' Its audio recordings will be moved to the Trash.' : ''
+        }${deleteConfirm?.recordings?.some((r) => r.type === 'video') ? ' Its videos stay in your video folder.' : ''}`}
         confirmText="Delete"
       />
     </div>

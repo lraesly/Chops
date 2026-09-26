@@ -1,6 +1,10 @@
 import { useState, useRef } from 'react';
-import { Mic, Square, Play, Pause, Trash2, Save } from 'lucide-react';
-import { useAudioRecorder, blobToBase64 } from '../hooks/useAudioRecorder';
+import { Mic, Square, Play, Pause, Trash2, Save, Video } from 'lucide-react';
+import { useAudioRecorder } from '../hooks/useAudioRecorder';
+import { createAudioRecording } from '../hooks/audioStorage';
+import { useRecordingPlayer } from '../hooks/useRecordingPlayer';
+import { VideoPlayerModal } from './VideoPlayerModal';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export function AudioRecorder({ onSaveRecording, sessionInstanceId }) {
   const { isRecording, audioUrl, toggleRecording, clearRecording, audioBlob, mimeType } =
@@ -22,15 +26,20 @@ export function AudioRecorder({ onSaveRecording, sessionInstanceId }) {
 
   const handleSave = async () => {
     if (audioBlob && recordingName.trim()) {
-      const base64 = await blobToBase64(audioBlob);
-      onSaveRecording({
-        id: Date.now().toString(),
-        name: recordingName.trim(),
-        audio: base64,
-        mimeType: mimeType,
-        sessionInstanceId,
-        createdAt: new Date().toISOString(),
-      });
+      let recording;
+      try {
+        recording = await createAudioRecording({
+          blob: audioBlob,
+          mimeType,
+          name: recordingName.trim(),
+          sessionInstanceId,
+        });
+      } catch (error) {
+        console.error('Error saving recording:', error);
+        alert(`Could not save the recording: ${error.message || error}`);
+        return;
+      }
+      onSaveRecording(recording);
       clearRecording();
       setRecordingName('');
       setIsPlaying(false);
@@ -118,21 +127,9 @@ export function AudioRecorder({ onSaveRecording, sessionInstanceId }) {
 }
 
 export function RecordingsList({ recordings, onDelete }) {
-  const [playingId, setPlayingId] = useState(null);
-  const audioRefs = useRef({});
-
-  const handlePlay = (recording) => {
-    if (playingId === recording.id) {
-      audioRefs.current[recording.id]?.pause();
-      setPlayingId(null);
-    } else {
-      if (playingId && audioRefs.current[playingId]) {
-        audioRefs.current[playingId].pause();
-      }
-      audioRefs.current[recording.id]?.play();
-      setPlayingId(recording.id);
-    }
-  };
+  const { playingId, toggle: handlePlay, register, onEnded } = useRecordingPlayer();
+  const [openVideo, setOpenVideo] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   if (recordings.length === 0) return null;
 
@@ -140,14 +137,38 @@ export function RecordingsList({ recordings, onDelete }) {
     <div className="space-y-2">
       <h4 className="text-sm font-medium text-gray-600 dark:text-gray-300">Recordings</h4>
       {recordings.map((recording) => (
+        recording.type === 'video' ? (
+        <div
+          key={recording.id}
+          className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
+        >
+          <button
+            onClick={() => setOpenVideo(recording)}
+            className="p-2 bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-900/60 transition-colors"
+            title="Play video"
+          >
+            <Video size={16} />
+          </button>
+          <span className="flex-1 text-sm text-gray-700 dark:text-gray-200 truncate">
+            {recording.name}
+          </span>
+          <button
+            onClick={() => setPendingDelete(recording)}
+            className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            title="Delete video"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+        ) : (
         <div
           key={recording.id}
           className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
         >
           <audio
-            ref={(el) => (audioRefs.current[recording.id] = el)}
+            ref={register(recording.id)}
             src={recording.audio}
-            onEnded={() => setPlayingId(null)}
+            onEnded={onEnded}
             className="hidden"
           />
           <button
@@ -160,13 +181,28 @@ export function RecordingsList({ recordings, onDelete }) {
             {recording.name}
           </span>
           <button
-            onClick={() => onDelete(recording.id)}
+            onClick={() => setPendingDelete(recording)}
             className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            title="Delete recording"
           >
             <Trash2 size={16} />
           </button>
         </div>
+        )
       ))}
+      {openVideo && <VideoPlayerModal recording={openVideo} onClose={() => setOpenVideo(null)} />}
+      <ConfirmDialog
+        isOpen={!!pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={() => onDelete(pendingDelete.id)}
+        title={pendingDelete?.type === 'video' ? 'Delete Video' : 'Delete Recording'}
+        message={
+          pendingDelete?.filePath
+            ? `Delete "${pendingDelete?.name}"? The file will be moved to the Trash.`
+            : `Delete "${pendingDelete?.name}"? This can't be undone.`
+        }
+        confirmText="Delete"
+      />
     </div>
   );
 }

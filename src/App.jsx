@@ -4,6 +4,8 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { confirm } from '@tauri-apps/plugin-dialog';
 import { ChopsIcon } from './components/ChopsIcon';
 import { useFileStorage, useStorageSetup } from './hooks/useFileStorage';
+import { migrateEmbeddedAudio, applyMigratedPaths, hasEmbeddedAudio } from './hooks/audioStorage';
+import { trashFile } from './hooks/videoStorage';
 import { useKeyboardShortcuts, useSpacebarToggle } from './hooks/useKeyboardShortcuts';
 import { useMetronome } from './hooks/useMetronome';
 import { Navigation } from './components/Navigation';
@@ -243,6 +245,15 @@ function AppContent({ isTauri, resetStorage }) {
         }
       },
     },
+    // Video recorder: V (only when in practice view)
+    {
+      key: 'v',
+      handler: () => {
+        if (currentView === 'practice') {
+          practiceSessionRef.current?.openVideoRecorder?.();
+        }
+      },
+    },
     // Help modal: ? key
     {
       key: '?',
@@ -253,6 +264,42 @@ function AppContent({ isTauri, resetStorage }) {
   ], [currentView, metronome]);
 
   useKeyboardShortcuts(shortcuts);
+
+  // One-time move of audio that older versions stored inline in the data file
+  // (as base64) out to separate files, which keeps the data file small.
+  const audioMigrationStartedRef = useRef(false);
+  const allDataLoaded = itemsLoaded && sessionsLoaded && sessionItemsLoaded && recordingsLoaded;
+  useEffect(() => {
+    if (!isTauri || !allDataLoaded || audioMigrationStartedRef.current) return;
+    const embedded = [
+      ...recordings,
+      ...sessions.flatMap((session) => session.recordings || []),
+    ].filter(hasEmbeddedAudio);
+    if (embedded.length === 0) return;
+    audioMigrationStartedRef.current = true;
+
+    (async () => {
+      try {
+        const { paths, failures } = await migrateEmbeddedAudio(embedded);
+        if (Object.keys(paths).length > 0) {
+          setSessions((prev) => prev.map((session) =>
+            session.recordings?.some(hasEmbeddedAudio)
+              ? { ...session, recordings: session.recordings.map((r) => applyMigratedPaths(r, paths)) }
+              : session
+          ));
+          setRecordings((prev) => prev.map((r) => applyMigratedPaths(r, paths)));
+          addToast(`Moved ${Object.keys(paths).length} audio recordings out of the data file into "Audio Recordings"`);
+        }
+        if (failures.length > 0) {
+          addToast(`${failures.length} audio recordings could not be moved and were left as they were`, 'error');
+        }
+      } catch (err) {
+        console.error('Audio migration failed; recordings left in the data file:', err);
+        addToast('Could not move audio recordings to files; nothing was changed', 'error');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTauri, allDataLoaded]);
 
   // Show loading state while file data loads
   if (isTauri && (!itemsLoaded || !sessionsLoaded || !sessionItemsLoaded || !recordingsLoaded)) {
@@ -279,11 +326,45 @@ function AppContent({ isTauri, resetStorage }) {
     addToast(`Added "${item.name}" to session`);
   };
 
+  // Trashes each file unless another session (or the current one) still uses it.
+  // Older versions could copy the same recording into several sessions.
+  const trashUnreferencedFiles = async (filePaths, remainingSessions, remainingRecordings) => {
+    const stillUsed = new Set(
+      [...remainingRecordings, ...remainingSessions.flatMap((s) => s.recordings || [])]
+        .map((r) => r.filePath)
+        .filter(Boolean)
+    );
+    let failed = 0;
+    for (const filePath of new Set(filePaths)) {
+      if (stillUsed.has(filePath)) continue;
+      try {
+        await trashFile(filePath);
+      } catch (err) {
+        console.error('Could not move file to the Trash:', filePath, err);
+        failed++;
+      }
+    }
+    if (failed > 0) {
+      addToast(`${failed} recording file${failed === 1 ? '' : 's'} could not be moved to the Trash`, 'error');
+    }
+  };
+
+  // Audio files are app-managed, so recordings that get dropped take their file
+  // with them (to the Trash). Videos are the user's to manage and are left alone.
+  const trashDroppedAudio = (dropped, remainingSessions, remainingRecordings) => {
+    const files = dropped.filter((r) => r.type !== 'video' && r.filePath).map((r) => r.filePath);
+    if (isTauri && files.length > 0) {
+      trashUnreferencedFiles(files, remainingSessions, remainingRecordings);
+    }
+  };
+
   const handleRemoveFromSession = (index) => {
     // Also remove recordings for this session instance
     const removedItem = sessionItems[index];
     if (removedItem) {
-      setRecordings(recordings.filter(r => r.sessionInstanceId !== removedItem.sessionInstanceId));
+      const remaining = recordings.filter(r => r.sessionInstanceId !== removedItem.sessionInstanceId);
+      setRecordings(remaining);
+      trashDroppedAudio(recordings.filter(r => r.sessionInstanceId === removedItem.sessionInstanceId), sessions, remaining);
     }
     setSessionItems(sessionItems.filter((_, i) => i !== index));
   };
@@ -292,9 +373,10 @@ function AppContent({ isTauri, resetStorage }) {
     // Remove all instances of this item from the session
     const itemsToRemove = sessionItems.filter(si => si.id === itemId);
     const itemName = itemsToRemove[0]?.name || 'Item';
-    itemsToRemove.forEach(item => {
-      setRecordings(prev => prev.filter(r => r.sessionInstanceId !== item.sessionInstanceId));
-    });
+    const removedInstances = new Set(itemsToRemove.map(item => item.sessionInstanceId));
+    const remaining = recordings.filter(r => !removedInstances.has(r.sessionInstanceId));
+    setRecordings(remaining);
+    trashDroppedAudio(recordings.filter(r => removedInstances.has(r.sessionInstanceId)), sessions, remaining);
     setSessionItems(prev => prev.filter(si => si.id !== itemId));
     addToast(`Removed "${itemName}" from session`);
   };
@@ -319,11 +401,16 @@ function AppContent({ isTauri, resetStorage }) {
   const handleResetPracticeSession = () => {
     setSessionItems([]);
     setRecordings([]);
+    trashDroppedAudio(recordings, sessions, []);
     setSessionTotalTime(0);
   };
 
+  // Deleting a session trashes its audio; videos stay in the user's video folder
   const handleDeleteSession = (sessionId) => {
-    setSessions(sessions.filter((s) => s.id !== sessionId));
+    const session = sessions.find((s) => s.id === sessionId);
+    const remaining = sessions.filter((s) => s.id !== sessionId);
+    setSessions(remaining);
+    trashDroppedAudio(session?.recordings || [], remaining, recordings);
   };
 
   const handleCopySessionToQueue = (session) => {
@@ -353,22 +440,32 @@ function AppContent({ isTauri, resetStorage }) {
   };
 
   const handleDeleteSessionsByDateRange = (startDate, endDate) => {
-    setSessions(sessions.filter((s) => {
+    const inRange = (s) => {
       const sessionDate = new Date(s.date);
-      return sessionDate < startDate || sessionDate > endDate;
-    }));
+      return sessionDate >= startDate && sessionDate <= endDate;
+    };
+    const remaining = sessions.filter((s) => !inRange(s));
+    setSessions(remaining);
+    trashDroppedAudio(sessions.filter(inRange).flatMap((s) => s.recordings || []), remaining, recordings);
   };
 
   const handleClearAllSessions = () => {
     setSessions([]);
+    trashDroppedAudio(sessions.flatMap((s) => s.recordings || []), [], recordings);
   };
 
   const handleSaveRecording = (recording) => {
     setRecordings(prev => [...prev, recording]);
   };
 
+  // Removes the recording and moves its audio or video file to the Trash
   const handleDeleteRecording = (recordingId) => {
-    setRecordings(prev => prev.filter((r) => r.id !== recordingId));
+    const recording = recordings.find((r) => r.id === recordingId);
+    const remaining = recordings.filter((r) => r.id !== recordingId);
+    setRecordings(remaining);
+    if (isTauri && recording?.filePath) {
+      trashUnreferencedFiles([recording.filePath], sessions, remaining);
+    }
   };
 
   const handleArchiveItem = (item) => {
@@ -497,6 +594,7 @@ function AppContent({ isTauri, resetStorage }) {
   const handleLoadTemplate = (template) => {
     setSessionItems(buildSessionItemsFromTemplate(template));
     setRecordings([]);
+    trashDroppedAudio(recordings, sessions, []);
     setSessionTotalTime(0);
     setCurrentView('practice');
     addToast(`Loaded template "${template.name}"`);
@@ -509,6 +607,7 @@ function AppContent({ isTauri, resetStorage }) {
     setUserTags([]);
     setSessionItems([]);
     setRecordings([]);
+    trashDroppedAudio([...recordings, ...sessions.flatMap((s) => s.recordings || [])], [], []);
     setSessionTotalTime(0);
     setTodoItems([]);
     setArchivedTodoItems([]);

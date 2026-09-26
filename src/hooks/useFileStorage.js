@@ -586,4 +586,4 @@ export function useFileStorage(key, initialValue) {
   return [storedValue, setValue, isLoaded];
 }
 
-export { isTauri };
+export { isTauri, loadTauriModules, readAppConfig, writeAppConfig };
