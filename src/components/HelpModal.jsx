@@ -1,5 +1,8 @@
-import { useEffect } from 'react';
-import { X, Keyboard, BookOpen } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, Keyboard, BookOpen, ExternalLink } from 'lucide-react';
+import { open } from '@tauri-apps/plugin-shell';
+
+const USER_GUIDE_URL = 'https://github.com/lraesly/Chops/blob/main/docs/USER-GUIDE.md';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 const cmdKey = isMac ? '⌘' : 'Ctrl';
@@ -10,8 +13,16 @@ const shortcuts = [
     items: [
       { keys: ['Space'], description: 'Start/Pause timer' },
       { keys: [cmdKey, 'S'], description: 'Save session' },
-      { keys: ['R'], description: 'Start/Stop recording (when timer running)' },
-      { keys: ['V'], description: 'Record video (when timer running); in the video window Space starts/stops, P pauses' },
+      { keys: ['R'], description: 'Start/Stop audio recording (once the session has started)' },
+      { keys: ['V'], description: 'Open the video recorder (once the session has started)' },
+    ],
+  },
+  {
+    category: 'Video Recorder',
+    items: [
+      { keys: ['Space'], description: 'Record/Stop (R works too; cancels a count-in)' },
+      { keys: ['P'], description: 'Pause/Resume the take' },
+      { keys: ['Esc'], description: 'Close (when not recording)' },
     ],
   },
   {
@@ -38,14 +49,36 @@ const shortcuts = [
   },
 ];
 
-const tips = [
-  'Add practice items first, then start a session from the Practice tab.',
-  'Save a session queue as a Template to reload the same set of items later.',
-  'Pause the session to click and correct any item\'s time; the session total adjusts to match.',
-  'Use the metronome to keep time while practicing.',
-  'Record yourself to track progress over time.',
-  'Check Statistics to see your practice streaks and trends.',
-  'Export backups regularly from Settings to keep your data safe.',
+// Short version of docs/USER-GUIDE.md; keep the two in step
+const guide = [
+  {
+    title: 'Practice',
+    body: 'Add items to the queue, then press Space to start. ▶ on a queue item switches to it; the session clock keeps running. Pause to click an item\'s time and correct it. Save Session (⌘S) stores times, notes and recordings. Save notes before leaving the tab: switching tabs pauses the session and clears unsaved notes.',
+  },
+  {
+    title: 'Recording audio',
+    body: 'Once the session has started, click the mic or press R to record and again to stop, then name and save the take. Recordings belong to the item you were practicing. Deleting one moves its file to the Trash.',
+  },
+  {
+    title: 'Recording video',
+    body: 'Click the camera or press V. Pick a camera and audio input (for example a Loopback device carrying your rig and backing track), check the level meter, and set a count-in. Space records and stops, P pauses. After stopping, name the take and Save; tick "Open in default video app" to trim it straight away. Videos are saved to the Video Folder set in Settings.',
+  },
+  {
+    title: 'Metronome',
+    body: 'Click the metronome icon or press M. K starts and stops it, [ and ] step between tempo presets. Closing the popup stops it.',
+  },
+  {
+    title: 'Items, To Do and Templates',
+    body: 'Items is your practice library: categories, tags, and link or PDF attachments. To Do holds ideas for later; move one to Items when you\'re ready. Templates are saved queues, such as a warm-up; Load replaces the queue with one.',
+  },
+  {
+    title: 'History and Stats',
+    body: 'History shows every saved session with its notes, item times and recordings. Copy to Session reuses a session\'s items. Stats shows totals, your streak, a 30-day calendar, and time by category and item; filter it by tag.',
+  },
+  {
+    title: 'Your files',
+    body: 'Practice data lives in your data folder (Settings > Storage Location). Videos go to your Video Folder. Chops keeps audio recordings in its own app folder. Export Backup saves your data but not recordings, so back those up too. Deleted recordings go to the Trash, never straight to deletion.',
+  },
 ];
 
 export function HelpModal({ isOpen, onClose }) {
@@ -63,7 +96,16 @@ export function HelpModal({ isOpen, onClose }) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  const [tab, setTab] = useState('guide');
+
   if (!isOpen) return null;
+
+  const tabClass = (name) =>
+    `flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+      tab === name
+        ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
+        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+    }`;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -78,12 +120,40 @@ export function HelpModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Keyboard Shortcuts */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Keyboard size={20} className="text-primary-600 dark:text-primary-400" />
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Keyboard Shortcuts</h3>
+        <div className="flex gap-2 mb-5">
+          <button onClick={() => setTab('guide')} className={tabClass('guide')}>
+            <BookOpen size={16} />
+            Guide
+          </button>
+          <button onClick={() => setTab('shortcuts')} className={tabClass('shortcuts')}>
+            <Keyboard size={16} />
+            Keyboard Shortcuts
+          </button>
+        </div>
+
+        {tab === 'guide' && (
+          <div className="space-y-4">
+            {guide.map((section) => (
+              <div key={section.title}>
+                <h4 className="font-semibold text-gray-800 dark:text-white mb-1">{section.title}</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{section.body}</p>
+              </div>
+            ))}
+            <button
+              onClick={() => open(USER_GUIDE_URL).catch((err) => console.error('Could not open the user guide:', err))}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm"
+            >
+              <ExternalLink size={16} />
+              Open the full user guide
+            </button>
           </div>
+        )}
+
+        {tab === 'shortcuts' && (
+        <div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Single-key shortcuts work on the Practice tab and don't fire while you're typing.
+          </p>
 
           <div className="space-y-5">
             {shortcuts.map((group) => (
@@ -117,23 +187,7 @@ export function HelpModal({ isOpen, onClose }) {
             ))}
           </div>
         </div>
-
-        {/* Tips */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <BookOpen size={20} className="text-primary-600 dark:text-primary-400" />
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Quick Tips</h3>
-          </div>
-
-          <ul className="space-y-2">
-            {tips.map((tip, index) => (
-              <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
-                <span className="text-primary-500 mt-1">•</span>
-                {tip}
-              </li>
-            ))}
-          </ul>
-        </div>
+        )}
 
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-400 dark:text-gray-500 text-center">

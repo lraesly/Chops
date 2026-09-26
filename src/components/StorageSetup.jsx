@@ -9,7 +9,7 @@ export function StorageSetup({ onSetup, onChooseFolder }) {
   useEffect(() => {
     const loadDefaultPath = async () => {
       const path = await getDefaultStoragePath();
-      setDefaultPath(path || 'Documents/Chops');
+      setDefaultPath(path || 'Documents/Music Practice Log');
     };
     loadDefaultPath();
   }, []);
@@ -34,7 +34,7 @@ export function StorageSetup({ onSetup, onChooseFolder }) {
             <HardDrive className="text-primary-600 dark:text-primary-400" size={32} />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-            Welcome to Practice Log
+            Welcome to Chops
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Choose where to store your practice data. You can put it in a synced folder (like Dropbox or iCloud) to access it from multiple devices.
