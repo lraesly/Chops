@@ -184,7 +184,7 @@ A place for things you want to practice later.
 
 **To-dos from other tools.** A to-do can also say where it came from, such as a teacher's feedback video. Those show a note, a label like *Daniel Seriff · Sep 24* and an **open** button that jumps to the source (a web page or a file). Once any to-do has a label, chips at the top filter the list by source (**Mine** shows the ones you typed). Moving one to practice items keeps its link as an attachment.
 
-Other tools add these by dropping a JSON file in the **To Do Inbox** folder inside your data folder. Chops picks it up when it starts or when you switch back to it, then moves the file to the Trash:
+Other tools add these by dropping a JSON file in the **To Do Inbox** folder inside your data folder. Chops picks it up when it starts or when you switch back to it, then moves the file into **To Do Inbox/Imported**:
 
 ```json
 { "todos": [

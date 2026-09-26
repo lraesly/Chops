@@ -362,8 +362,8 @@ function AppContent({ isTauri, resetStorage }) {
   }, [isTauri, allDataLoaded]);
 
   // Pick up to-dos that other tools dropped in the "To Do Inbox" folder (see
-  // todoInbox.js): on launch and whenever the window regains focus. Inbox files go
-  // to the Trash only after the imported to-dos have been written to the data file.
+  // todoInbox.js): on launch and whenever the window regains focus. Inbox files move
+  // to "Imported" only after the imported to-dos have been written to the data file.
   const todoListsRef = useRef({ todoItems, archivedTodoItems });
   useEffect(() => {
     todoListsRef.current = { todoItems, archivedTodoItems };

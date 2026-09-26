@@ -2,7 +2,7 @@
 // can't write to the data file while Chops is open: the app holds to-dos in memory
 // and would overwrite them on the next save. Instead they drop JSON files into
 // "<data folder>/To Do Inbox/". Chops picks them up on launch and whenever the
-// window regains focus, then moves each imported file to the Trash.
+// window regains focus, then moves each imported file into "To Do Inbox/Imported".
 //
 // File format: { "todos": [{ "id", "name", "source", "sourceDate", "note", "link" }] }
 // Only "name" is required. Supplying a stable "id" makes re-imports harmless.
@@ -65,13 +65,23 @@ export const readTodoInbox = async () => {
   return { todos, files };
 };
 
+// Moves imported files into "To Do Inbox/Imported" (the signed app can't always
+// move files to the Trash, and this keeps a record of what came in)
 export const clearTodoInboxFiles = async (files) => {
-  const { invoke } = await import('@tauri-apps/api/core');
+  const { fs } = await loadTauriModules();
+  if (!fs || files.length === 0) return;
+  const imported = joinPath(joinPath(getStoragePath(), TODO_INBOX_FOLDER), 'Imported');
+  try {
+    await fs.mkdir(imported, { recursive: true });
+  } catch {
+    // Already exists
+  }
   for (const filePath of files) {
+    const name = filePath.slice(Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\')) + 1);
     try {
-      await invoke('trash_file', { path: filePath });
+      await fs.rename(filePath, joinPath(imported, name));
     } catch (error) {
-      console.error(`Could not move ${filePath} to the Trash:`, error);
+      console.error(`Could not move ${filePath} to Imported:`, error);
     }
   }
 };
