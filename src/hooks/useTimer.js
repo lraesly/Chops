@@ -1,51 +1,62 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 export function useTimer() {
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef(null);
-  const startTimeRef = useRef(null);
+  // Controls read these refs rather than state, so calling several in a row within
+  // one render (pause then start, reset then start) behaves correctly. Reading
+  // `isRunning` from state there made start() a no-op right after pause().
+  const runningRef = useRef(false);
+  const startTimeRef = useRef(0);
   const accumulatedTimeRef = useRef(0);
 
+  // Exact elapsed time right now (the `time` state only refreshes every 100 ms)
+  const getTime = useCallback(
+    () => accumulatedTimeRef.current + (runningRef.current ? Date.now() - startTimeRef.current : 0),
+    []
+  );
+
   const start = useCallback(() => {
-    if (!isRunning) {
-      startTimeRef.current = Date.now();
-      intervalRef.current = setInterval(() => {
-        const elapsed = Date.now() - startTimeRef.current;
-        setTime(accumulatedTimeRef.current + elapsed);
-      }, 100);
-      setIsRunning(true);
-    }
-  }, [isRunning]);
+    if (runningRef.current) return;
+    runningRef.current = true;
+    startTimeRef.current = Date.now();
+    intervalRef.current = setInterval(() => setTime(getTime()), 100);
+    setIsRunning(true);
+  }, [getTime]);
 
   const pause = useCallback(() => {
-    if (isRunning) {
-      clearInterval(intervalRef.current);
-      accumulatedTimeRef.current = time;
-      setIsRunning(false);
-    }
-  }, [isRunning, time]);
+    if (!runningRef.current) return;
+    accumulatedTimeRef.current = getTime();
+    runningRef.current = false;
+    clearInterval(intervalRef.current);
+    setTime(accumulatedTimeRef.current);
+    setIsRunning(false);
+  }, [getTime]);
 
   const reset = useCallback(() => {
     clearInterval(intervalRef.current);
+    runningRef.current = false;
+    accumulatedTimeRef.current = 0;
     setTime(0);
     setIsRunning(false);
-    accumulatedTimeRef.current = 0;
-    startTimeRef.current = null;
   }, []);
 
   const setInitialTime = useCallback((initialTime) => {
-    setTime(initialTime);
     accumulatedTimeRef.current = initialTime;
+    if (runningRef.current) startTimeRef.current = Date.now();
+    setTime(initialTime);
   }, []);
 
   const toggle = useCallback(() => {
-    if (isRunning) {
+    if (runningRef.current) {
       pause();
     } else {
       start();
     }
-  }, [isRunning, pause, start]);
+  }, [pause, start]);
+
+  useEffect(() => () => clearInterval(intervalRef.current), []);
 
   return {
     time,
@@ -55,6 +66,7 @@ export function useTimer() {
     reset,
     toggle,
     setInitialTime,
+    getTime,
   };
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Play, Pause, RotateCcw, X, ChevronUp, ChevronDown, Save, FileText, Timer, CheckCircle, TrendingUp, Calendar, Flame, Paperclip, Link as LinkIcon, Plus, Pencil, BookmarkPlus, Video } from 'lucide-react';
 import { useTimer, formatTime, parseTimeInput } from '../hooks/useTimer';
 import { MetronomePopup } from './MetronomePopup';
@@ -10,56 +10,6 @@ import { AttachmentList } from './AttachmentList';
 import { RichTextEditor } from './RichTextEditor';
 import { openLink } from '../hooks/todoInbox';
 import { ConfirmDialog } from './ConfirmDialog';
-
-function useItemTimer() {
-  const [time, setTime] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const intervalRef = useRef(null);
-  const startTimeRef = useRef(null);
-  const accumulatedTimeRef = useRef(0);
-
-  const start = useCallback(() => {
-    if (!isRunning) {
-      startTimeRef.current = Date.now();
-      intervalRef.current = setInterval(() => {
-        const elapsed = Date.now() - startTimeRef.current;
-        setTime(accumulatedTimeRef.current + elapsed);
-      }, 100);
-      setIsRunning(true);
-    }
-  }, [isRunning]);
-
-  const pause = useCallback(() => {
-    if (isRunning) {
-      clearInterval(intervalRef.current);
-      accumulatedTimeRef.current = time;
-      setIsRunning(false);
-    }
-  }, [isRunning, time]);
-
-  const reset = useCallback(() => {
-    clearInterval(intervalRef.current);
-    setTime(0);
-    setIsRunning(false);
-    accumulatedTimeRef.current = 0;
-    startTimeRef.current = null;
-  }, []);
-
-  const setInitialTime = useCallback((initialTime) => {
-    setTime(initialTime);
-    accumulatedTimeRef.current = initialTime;
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
-
-  return { time, isRunning, start, pause, reset, setInitialTime };
-}
 
 export const PracticeSession = forwardRef(function PracticeSession({
   sessionItems,
@@ -83,7 +33,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
   onPracticeNotesChange,
 }, ref) {
   const sessionTimer = useTimer();
-  const itemTimer = useItemTimer();
+  const itemTimer = useTimer();
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [showNotes, setShowNotes] = useState(false);
   // Initialize sessionStarted from props to avoid render gap when switching tabs
@@ -148,8 +98,8 @@ export const PracticeSession = forwardRef(function PracticeSession({
     toggleMetronomePopup: () => metronomePopupRef.current?.toggle(),
     // Store the latest timer values right away (normally synced every 1-5 seconds)
     persistProgress: () => {
-      if (currentItem) onUpdateSessionItemTime(currentItemIndex, itemTimer.time);
-      onSessionTimeChange?.(sessionTimer.time);
+      if (currentItem) onUpdateSessionItemTime(currentItemIndex, itemTimer.getTime());
+      onSessionTimeChange?.(sessionTimer.getTime());
     },
     openVideoRecorder: () => {
       if (sessionStarted && isTauri()) setShowVideoRecorder(true);
@@ -185,15 +135,26 @@ export const PracticeSession = forwardRef(function PracticeSession({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentItemIndex]);
 
-  // Sync item time periodically while running
+  // Latest values for the periodic saves below, so their intervals aren't restarted
+  // on every timer tick (they depended on the time and never got to fire)
+  const persistRef = useRef({});
   useEffect(() => {
-    if (itemTimer.isRunning && currentItem) {
-      const syncInterval = setInterval(() => {
-        onUpdateSessionItemTime(currentItemIndex, itemTimer.time);
-      }, 1000);
-      return () => clearInterval(syncInterval);
-    }
-  }, [itemTimer.isRunning, itemTimer.time, currentItemIndex, currentItem, onUpdateSessionItemTime]);
+    persistRef.current = { currentItem, currentItemIndex, onUpdateSessionItemTime, onSessionTimeChange };
+  });
+
+  // Save the item and session times every 5 seconds while running, so a crash or
+  // force-quit loses at most a few seconds (quitting normally saves them exactly)
+  useEffect(() => {
+    if (!sessionTimer.isRunning && !itemTimer.isRunning) return;
+    const persistInterval = setInterval(() => {
+      const { currentItem: item, currentItemIndex: index, onUpdateSessionItemTime: updateItem, onSessionTimeChange: updateSession } = persistRef.current;
+      if (itemTimer.isRunning && item) updateItem(index, itemTimer.getTime());
+      if (sessionTimer.isRunning) updateSession?.(sessionTimer.getTime());
+    }, 5000);
+    return () => clearInterval(persistInterval);
+    // getTime is stable; only (re)start the interval when a timer starts or stops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionTimer.isRunning, itemTimer.isRunning]);
 
   // Initialize session timer from persisted time (on mount only)
   useEffect(() => {
@@ -202,16 +163,6 @@ export const PracticeSession = forwardRef(function PracticeSession({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
-
-  // Persist session time periodically while running
-  useEffect(() => {
-    if (sessionTimer.isRunning && onSessionTimeChange) {
-      const persistInterval = setInterval(() => {
-        onSessionTimeChange(sessionTimer.time);
-      }, 5000); // Persist every 5 seconds
-      return () => clearInterval(persistInterval);
-    }
-  }, [sessionTimer.isRunning, sessionTimer.time, onSessionTimeChange]);
 
   // Persist session time when paused
   useEffect(() => {
