@@ -27,6 +27,8 @@ export function Settings({
   userTags,
   todoItems = [],
   archivedTodoItems = [],
+  notes = [],
+  archivedNotes = [],
   practiceTemplates = [],
   onImportData,
   onResetStorage,
@@ -203,6 +205,8 @@ export function Settings({
       userTags,
       todoItems,
       archivedTodoItems,
+      notes,
+      archivedNotes,
       practiceTemplates,
       colorTheme,
       exportedAt: new Date().toISOString(),
@@ -276,6 +280,8 @@ export function Settings({
           userTags: data.userTags || [],
           todoItems: data.todoItems || [],
           archivedTodoItems: data.archivedTodoItems || [],
+          notes: data.notes || [],
+          archivedNotes: data.archivedNotes || [],
           practiceTemplates: data.practiceTemplates || [],
         });
         showMessage('Data imported successfully!');
@@ -593,11 +599,11 @@ export function Settings({
           </div>
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          This will permanently delete all practice items, to-do items, archived items, session history, and tags.
+          This will permanently delete all practice items, to-do items, notes, templates, archived items, session history, and tags.
         </p>
         <button
           onClick={() => setShowResetAllModal(true)}
-          disabled={practiceItems.length === 0 && archivedItems.length === 0 && sessions.length === 0 && userTags.length === 0 && todoItems.length === 0 && archivedTodoItems.length === 0}
+          disabled={practiceItems.length === 0 && archivedItems.length === 0 && sessions.length === 0 && userTags.length === 0 && todoItems.length === 0 && archivedTodoItems.length === 0 && notes.length === 0 && archivedNotes.length === 0 && practiceTemplates.length === 0}
           className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Trash2 size={18} />
@@ -713,8 +719,9 @@ export function Settings({
               <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 ml-4">
                 <li>• {practiceItems.length} practice item{practiceItems.length !== 1 ? 's' : ''}</li>
                 <li>• {todoItems.length} to-do item{todoItems.length !== 1 ? 's' : ''}</li>
+                <li>• {notes.length} note{notes.length !== 1 ? 's' : ''}</li>
                 <li>• {practiceTemplates.length} template{practiceTemplates.length !== 1 ? 's' : ''}</li>
-                <li>• {archivedItems.length + archivedTodoItems.length} archived item{(archivedItems.length + archivedTodoItems.length) !== 1 ? 's' : ''}</li>
+                <li>• {archivedItems.length + archivedTodoItems.length + archivedNotes.length} archived item{(archivedItems.length + archivedTodoItems.length + archivedNotes.length) !== 1 ? 's' : ''}</li>
                 <li>• {sessions.length} session{sessions.length !== 1 ? 's' : ''}</li>
                 <li>• {userTags.length} tag{userTags.length !== 1 ? 's' : ''}</li>
               </ul>

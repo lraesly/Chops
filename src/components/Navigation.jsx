@@ -1,10 +1,11 @@
-import { Music, History, BarChart3, Library, ListTodo, LayoutTemplate, Settings } from 'lucide-react';
+import { Music, History, BarChart3, Library, ListTodo, NotebookPen, LayoutTemplate, Settings } from 'lucide-react';
 
 export function Navigation({ currentView, onViewChange }) {
   const tabs = [
     { id: 'practice', label: 'Practice', icon: Music },
     { id: 'items', label: 'Items', icon: Library },
     { id: 'todos', label: 'To Do', icon: ListTodo },
+    { id: 'notes', label: 'Notes', icon: NotebookPen },
     { id: 'templates', label: 'Templates', icon: LayoutTemplate },
     { id: 'history', label: 'History', icon: History },
     { id: 'stats', label: 'Stats', icon: BarChart3 },

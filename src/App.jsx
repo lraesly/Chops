@@ -17,6 +17,7 @@ import { History } from './components/History';
 import { Stats } from './components/Stats';
 import { ItemsManager } from './components/ItemsManager';
 import { TodoList } from './components/TodoList';
+import { Notes } from './components/Notes';
 import { Templates } from './components/Templates';
 import { ThemeToggle } from './components/ThemeToggle';
 import { StorageSetup } from './components/StorageSetup';
@@ -64,6 +65,8 @@ function AppContent({ isTauri, resetStorage }) {
   const [userTags, setUserTags] = useFileStorage('userTags', []);
   const [todoItems, setTodoItems, todosLoaded] = useFileStorage('todoItems', []);
   const [archivedTodoItems, setArchivedTodoItems, archivedTodosLoaded] = useFileStorage('archivedTodoItems', []);
+  const [notes, setNotes] = useFileStorage('notes', []);
+  const [archivedNotes, setArchivedNotes] = useFileStorage('archivedNotes', []);
   const [practiceTemplates, setPracticeTemplates] = useFileStorage('practiceTemplates', []);
   const [colorTheme, setColorTheme] = useFileStorage('colorTheme', 'violet');
   const [hasSeenWelcome, setHasSeenWelcome] = useFileStorage('hasSeenWelcome', false);
@@ -240,13 +243,14 @@ function AppContent({ isTauri, resetStorage }) {
 
   // Keyboard shortcuts for navigation and actions
   const shortcuts = useMemo(() => [
-    // View switching: Cmd/Ctrl + 1-6 and comma
+    // View switching: Cmd/Ctrl + 1-7 and comma
     { key: '1', ctrl: true, handler: () => setCurrentView('practice') },
     { key: '2', ctrl: true, handler: () => setCurrentView('items') },
     { key: '3', ctrl: true, handler: () => setCurrentView('todos') },
-    { key: '4', ctrl: true, handler: () => setCurrentView('templates') },
-    { key: '5', ctrl: true, handler: () => setCurrentView('history') },
-    { key: '6', ctrl: true, handler: () => setCurrentView('stats') },
+    { key: '4', ctrl: true, handler: () => setCurrentView('notes') },
+    { key: '5', ctrl: true, handler: () => setCurrentView('templates') },
+    { key: '6', ctrl: true, handler: () => setCurrentView('history') },
+    { key: '7', ctrl: true, handler: () => setCurrentView('stats') },
     { key: ',', ctrl: true, handler: () => setCurrentView('settings') },
     // Save session: Cmd/Ctrl + S (only when in practice view and can save)
     {
@@ -628,6 +632,8 @@ function AppContent({ isTauri, resetStorage }) {
     setUserTags(data.userTags);
     if (data.todoItems) setTodoItems(data.todoItems);
     if (data.archivedTodoItems) setArchivedTodoItems(data.archivedTodoItems);
+    if (data.notes) setNotes(data.notes);
+    if (data.archivedNotes) setArchivedNotes(data.archivedNotes);
     if (data.practiceTemplates) setPracticeTemplates(data.practiceTemplates);
   };
 
@@ -705,6 +711,36 @@ function AppContent({ isTauri, resetStorage }) {
     addToast(`Moved "${item.name}" to practice items`);
   };
 
+  // ---- Notes (free-form, saved as you type) ----
+  const handleAddNote = () => {
+    const now = new Date().toISOString();
+    const note = { id: Date.now().toString(), title: '', body: '', createdAt: now, updatedAt: now };
+    setNotes(prev => [...prev, note]);
+    return note;
+  };
+
+  const handleUpdateNote = (id, changes) => {
+    setNotes(prev => prev.map((n) => (n.id === id ? { ...n, ...changes, updatedAt: new Date().toISOString() } : n)));
+  };
+
+  const handleArchiveNote = (note) => {
+    setNotes(prev => prev.filter(n => n.id !== note.id));
+    setArchivedNotes(prev => [...prev, { ...note, archivedAt: new Date().toISOString() }]);
+    addToast(`Archived "${note.title?.trim() || 'Untitled note'}"`);
+  };
+
+  const handleRestoreNote = (note) => {
+    setArchivedNotes(prev => prev.filter(n => n.id !== note.id));
+    const { archivedAt, ...restored } = note;
+    setNotes(prev => [...prev, restored]);
+    addToast(`Restored "${note.title?.trim() || 'Untitled note'}"`);
+  };
+
+  const handleDeleteNote = (id) => {
+    setNotes(prev => prev.filter(n => n.id !== id));
+    setArchivedNotes(prev => prev.filter(n => n.id !== id));
+  };
+
   // ---- Practice templates ----
   // Resolve a template's item references to full practice items (active, then archived,
   // then a bare {id, name} if the item was deleted) and build a fresh session queue.
@@ -777,6 +813,8 @@ function AppContent({ isTauri, resetStorage }) {
     setSessionTotalTime(0);
     setTodoItems([]);
     setArchivedTodoItems([]);
+    setNotes([]);
+    setArchivedNotes([]);
     setPracticeTemplates([]);
   };
 
@@ -889,6 +927,18 @@ function AppContent({ isTauri, resetStorage }) {
           />
         )}
 
+        {currentView === 'notes' && (
+          <Notes
+            notes={notes}
+            archivedNotes={archivedNotes}
+            onAddNote={handleAddNote}
+            onUpdateNote={handleUpdateNote}
+            onArchiveNote={handleArchiveNote}
+            onRestoreNote={handleRestoreNote}
+            onDeleteNote={handleDeleteNote}
+          />
+        )}
+
         {currentView === 'templates' && (
           <Templates
             templates={practiceTemplates}
@@ -927,6 +977,8 @@ function AppContent({ isTauri, resetStorage }) {
             userTags={userTags}
             todoItems={todoItems}
             archivedTodoItems={archivedTodoItems}
+            notes={notes}
+            archivedNotes={archivedNotes}
             practiceTemplates={practiceTemplates}
             onImportData={handleImportData}
             onResetStorage={isTauri ? resetStorage : null}

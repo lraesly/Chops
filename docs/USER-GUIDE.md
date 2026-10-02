@@ -2,7 +2,7 @@
 
 Chops is a practice tracker for musicians. You build a queue of things to practice, time each one, record yourself on audio or video, and look back at your history and statistics.
 
-This guide covers Chops 0.7. Press **?** in the app at any time for the keyboard shortcuts and a short version of this guide.
+This guide covers Chops 0.8. Press **?** in the app at any time for the keyboard shortcuts and a short version of this guide.
 
 - [Getting started](#getting-started)
 - [Practice](#practice)
@@ -11,6 +11,7 @@ This guide covers Chops 0.7. Press **?** in the app at any time for the keyboard
 - [Metronome](#metronome)
 - [Items](#items)
 - [To Do](#to-do)
+- [Notes](#notes)
 - [Templates](#templates)
 - [History](#history)
 - [Stats](#stats)
@@ -194,6 +195,18 @@ Other apps and scripts can add labeled to-dos too; see [For tool builders](#for-
 
 ---
 
+## Notes
+
+Free-form pages for anything that isn't a practice item or a to-do: questions that come up during a session to ask your teacher, a list of songs to learn, ideas for the next video.
+
+- **New Note** opens a blank note. Give it a title and write in the body; bold, italic, underline and lists work as in Practice Notes. Everything saves as you type. **Done** (or **Esc**) closes the editor.
+- Each note shows its title, the first couple of lines, and when it was last edited. Click a note to read all of it; double-click or click the **pencil** to edit.
+- **Archive** sets a note aside; **Delete** removes it after asking. The **Archived** tab lets you read, restore or delete archived notes.
+
+Notes aren't tied to a session or an item. A session's **Practice Notes** are saved with that session in History; an item's **coach notes** stay with the item.
+
+---
+
 ## Templates
 
 Templates are saved queues you can reload, such as a warm-up routine or a set list.
@@ -232,7 +245,7 @@ Your practice statistics, in four views. The **All Tags** menu at the top narrow
 - **Color Theme:** six color schemes. Light and dark mode are set with the moon/sun button in the header.
 - **Storage Location:** where your practice data file lives. **Change Data Location** copies your data to a new folder and uses it from then on (the old copy stays but is no longer updated). **Reset Storage** makes Chops ask for a folder again the next time it opens; it doesn't delete anything.
 - **Video Folder:** where videos are saved (default `Movies/Chops`). **Change Video Folder** picks a new one, **Show in Finder** opens it, and **Use Default** switches back. Videos you've already recorded stay where they are.
-- **Backup & Restore:** **Export Backup** saves your items, sessions, tags, to-dos and templates to a file. **Import Backup** replaces your current data with a backup (after asking).
+- **Backup & Restore:** **Export Backup** saves your items, sessions, tags, to-dos, notes and templates to a file. **Import Backup** replaces your current data with a backup (after asking).
 - **Data Summary:** counts of your items, sessions and more.
 - **Manage Tags:** removes tags from the suggestion list. Items that already use a tag keep it.
 - **Delete History:** delete all sessions, one day's, or a date range. Audio in those sessions goes to the Trash; videos stay.
@@ -290,7 +303,7 @@ On Windows use **Ctrl** where this says **⌘**. Single-key shortcuts don't fire
 
 | Key | Action |
 |---|---|
-| ⌘1 – ⌘6 | Practice, Items, To Do, Templates, History, Stats |
+| ⌘1 – ⌘7 | Practice, Items, To Do, Notes, Templates, History, Stats |
 | ⌘, | Settings |
 | ? | Help |
 
