@@ -37,6 +37,8 @@ export function ItemsManager({
     newItemAttachments,
     addNewItemAttachment,
     removeNewItemAttachment,
+    newItemNotes,
+    setNewItemNotes,
     addItem,
 
     // Editing
@@ -47,6 +49,8 @@ export function ItemsManager({
     setEditingCategory,
     editingTags,
     setEditingTags,
+    editingNotes,
+    setEditingNotes,
     startEditing,
     saveEdit,
     cancelEdit,
@@ -154,6 +158,8 @@ export function ItemsManager({
               newItemAttachments={newItemAttachments}
               onAddAttachment={addNewItemAttachment}
               onRemoveAttachment={removeNewItemAttachment}
+              newItemNotes={newItemNotes}
+              setNewItemNotes={setNewItemNotes}
               onAddItem={addItem}
               userTags={userTags}
               onAddTag={onAddTag}
@@ -197,6 +203,8 @@ export function ItemsManager({
                     setEditingCategory={setEditingCategory}
                     editingTags={editingTags}
                     setEditingTags={setEditingTags}
+                    editingNotes={editingNotes}
+                    setEditingNotes={setEditingNotes}
                     onSaveEdit={saveEdit}
                     onCancelEdit={cancelEdit}
                     onStartEditing={() => startEditing(item)}

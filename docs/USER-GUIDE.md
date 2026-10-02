@@ -57,9 +57,11 @@ The large clock is **Total Session Time**. Under it, **Practicing: _item_** show
 
 Your queue, item times and session time are saved as you go, so if you quit mid-session Chops picks up where you left off.
 
-### Attachments
+### Coach notes and attachments
 
-If the current item has attachments (links or PDFs), they appear as buttons on the timer card. Links open in your browser; PDFs open in your PDF app. Add attachments on the [Items](#items) tab.
+If the current item has **coach notes**, they're shown on the timer card under its name, so a teacher's tips are in front of you while you practice. A queue item with notes shows a small speech-bubble icon; hover it to read them.
+
+If the current item has attachments (links or PDFs), they appear as buttons on the timer card. Links open in your browser; PDFs open in your PDF app. Add coach notes and attachments on the [Items](#items) tab.
 
 ### Practice notes
 
@@ -155,19 +157,20 @@ The metronome starts at 120 BPM each time you open Chops. Its keys work on the P
 
 The Items tab is your library of things to practice.
 
-**Add an item:** type a name and press **Enter** or **+**. Click **▼** first to set a **category**, **tags** and **attachments** before adding.
+**Add an item:** type a name and press **Enter** or **+**. Click **▼** first to set a **category**, **tags**, **coach notes** and **attachments** before adding.
 
 - **Categories:** Scales, Technique, Repertoire, Sight Reading, Theory, Ear Training.
 - **Tags:** your own labels. Type to pick an existing tag or create a new one.
+- **Coach notes:** free text that travels with the item, such as a teacher's tips or what to focus on. They're shown on the Practice tab while the item is being practiced.
 
 **Filter** the list by category and tags with the **Filters** button. Several tags together show items that have all of them.
 
 On each item:
 
-- The row shows how many sessions it has been in and the total time spent on it.
-- Click the row to see its attachments.
+- The row shows how many sessions it has been in and the total time spent on it. A speech-bubble icon means it has coach notes.
+- Click the row to see its coach notes and attachments.
 - The **paperclip** adds an attachment: a **link** (web address) or a **PDF** (up to 2 MB).
-- The **pencil** edits the name, category and tags.
+- The **pencil** edits the name, category, tags and coach notes. Clear the notes to remove them.
 - **Archive** hides the item from your library without losing its history.
 
 The **Archived** tab lists archived items. **Restore** brings one back; **Delete** removes it for good (after asking). Past sessions keep the item's name either way.
@@ -185,7 +188,7 @@ A place for things you want to practice later.
 
 - The **pencil** edits a to-do: its name, a **note**, a **link** (a web address or a file path) and a **label**, such as who suggested it. Leave a field blank to remove it.
 - A to-do with a link shows an **open** button. A label appears as a tag like *Guitar teacher · Sep 24*, and once any to-do has one, chips at the top filter the list by label (**Mine** shows the unlabeled ones).
-- Moving a to-do to practice items keeps its link as an attachment.
+- Moving a to-do to practice items keeps its link as an attachment and its note as the item's coach notes.
 
 Other apps and scripts can add labeled to-dos too; see [For tool builders](#for-tool-builders-the-to-do-inbox).
 

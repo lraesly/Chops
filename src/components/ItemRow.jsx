@@ -1,4 +1,4 @@
-import { Edit2, Check, X, GripVertical, Clock, Hash, Paperclip, Archive, CheckCircle } from 'lucide-react';
+import { Edit2, Check, X, GripVertical, Clock, Hash, Paperclip, Archive, CheckCircle, MessageSquareText } from 'lucide-react';
 import { formatTime } from '../hooks/useTimer';
 import { CategoryBadge } from './CategoryBadge';
 import { TagBadge } from './TagBadge';
@@ -20,6 +20,8 @@ export function ItemRow({
   setEditingCategory,
   editingTags,
   setEditingTags,
+  editingNotes = '',
+  setEditingNotes,
   onSaveEdit,
   onCancelEdit,
   onStartEditing,
@@ -41,6 +43,8 @@ export function ItemRow({
   showDragHandle = false,
 }) {
   const stats = itemStats?.[item.id];
+  const hasNotes = !!item.notes;
+  const hasAttachments = item.attachments?.length > 0;
 
   const renderStats = () => {
     if (!stats || stats.useCount === 0) return null;
@@ -108,6 +112,18 @@ export function ItemRow({
                 />
               </div>
             </div>
+            {setEditingNotes && (
+              <textarea
+                value={editingNotes}
+                onChange={(e) => setEditingNotes(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') onCancelEdit();
+                }}
+                placeholder="Coach notes: tips to keep in mind while practicing (optional)"
+                rows={3}
+                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            )}
           </div>
         ) : (
           <>
@@ -121,7 +137,12 @@ export function ItemRow({
                 {item.tags?.map(tag => (
                   <TagBadge key={tag} tag={tag} />
                 ))}
-                {item.attachments?.length > 0 && (
+                {hasNotes && (
+                  <span className="inline-flex items-center text-gray-500 dark:text-gray-400" title="Has coach notes">
+                    <MessageSquareText size={12} />
+                  </span>
+                )}
+                {hasAttachments && (
                   <span className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                     <Paperclip size={12} />
                     {item.attachments.length}
@@ -191,13 +212,24 @@ export function ItemRow({
         )}
       </div>
 
-      {/* Expanded section for attachments */}
-      {isExpanded && !isEditing && item.attachments?.length > 0 && (
-        <div className="px-3 pb-3 border-t border-gray-200 dark:border-gray-600 pt-2">
-          <AttachmentList
-            attachments={item.attachments}
-            onDelete={(attachmentId) => onDeleteAttachment(item.id, attachmentId)}
-          />
+      {/* Expanded section for coach notes and attachments */}
+      {isExpanded && !isEditing && (hasNotes || hasAttachments) && (
+        <div className="px-3 pb-3 border-t border-gray-200 dark:border-gray-600 pt-2 space-y-3">
+          {hasNotes && (
+            <div>
+              <h4 className="flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
+                <MessageSquareText size={14} />
+                Coach notes
+              </h4>
+              <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{item.notes}</p>
+            </div>
+          )}
+          {hasAttachments && (
+            <AttachmentList
+              attachments={item.attachments}
+              onDelete={(attachmentId) => onDeleteAttachment(item.id, attachmentId)}
+            />
+          )}
         </div>
       )}
     </div>

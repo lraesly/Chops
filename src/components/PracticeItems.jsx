@@ -32,6 +32,8 @@ export function PracticeItems({
     newItemAttachments,
     addNewItemAttachment,
     removeNewItemAttachment,
+    newItemNotes,
+    setNewItemNotes,
     addItem,
 
     // Editing
@@ -42,6 +44,8 @@ export function PracticeItems({
     setEditingCategory,
     editingTags,
     setEditingTags,
+    editingNotes,
+    setEditingNotes,
     startEditing,
     saveEdit,
     cancelEdit,
@@ -121,6 +125,8 @@ export function PracticeItems({
         newItemAttachments={newItemAttachments}
         onAddAttachment={addNewItemAttachment}
         onRemoveAttachment={removeNewItemAttachment}
+        newItemNotes={newItemNotes}
+        setNewItemNotes={setNewItemNotes}
         onAddItem={handleAddItem}
         userTags={userTags}
         onAddTag={onAddTag}
@@ -164,6 +170,8 @@ export function PracticeItems({
               setEditingCategory={setEditingCategory}
               editingTags={editingTags}
               setEditingTags={setEditingTags}
+              editingNotes={editingNotes}
+              setEditingNotes={setEditingNotes}
               onSaveEdit={saveEdit}
               onCancelEdit={cancelEdit}
               onStartEditing={() => startEditing(item)}

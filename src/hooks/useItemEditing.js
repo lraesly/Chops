@@ -10,6 +10,7 @@ export function useItemEditing({ items, sessions, onItemsChange }) {
   const [newItemCategory, setNewItemCategory] = useState(null);
   const [newItemTags, setNewItemTags] = useState([]);
   const [newItemAttachments, setNewItemAttachments] = useState([]);
+  const [newItemNotes, setNewItemNotes] = useState('');
   const [showNewItemOptions, setShowNewItemOptions] = useState(false);
 
   // Editing state
@@ -17,6 +18,7 @@ export function useItemEditing({ items, sessions, onItemsChange }) {
   const [editingName, setEditingName] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingTags, setEditingTags] = useState([]);
+  const [editingNotes, setEditingNotes] = useState('');
 
   // UI state
   const [expandedItem, setExpandedItem] = useState(null);
@@ -59,16 +61,18 @@ export function useItemEditing({ items, sessions, onItemsChange }) {
         tags: newItemTags,
         attachments: newItemAttachments,
       };
+      if (newItemNotes.trim()) newItem.notes = newItemNotes.trim();
       onItemsChange([...items, newItem]);
       setNewItemName('');
       setNewItemCategory(null);
       setNewItemTags([]);
       setNewItemAttachments([]);
+      setNewItemNotes('');
       setShowNewItemOptions(false);
       return newItem;
     }
     return null;
-  }, [newItemName, newItemCategory, newItemTags, newItemAttachments, items, onItemsChange]);
+  }, [newItemName, newItemCategory, newItemTags, newItemAttachments, newItemNotes, items, onItemsChange]);
 
   const addNewItemAttachment = useCallback((attachment) => {
     setNewItemAttachments(prev => [...prev, attachment]);
@@ -83,30 +87,37 @@ export function useItemEditing({ items, sessions, onItemsChange }) {
     setEditingName(item.name);
     setEditingCategory(item.category || null);
     setEditingTags(item.tags || []);
+    setEditingNotes(item.notes || '');
     setExpandedItem(item.id);
   }, []);
 
   const saveEdit = useCallback(() => {
     if (editingName.trim()) {
+      // Blank coach notes are removed rather than stored as an empty string
+      const notes = editingNotes.trim();
       onItemsChange(
-        items.map((item) =>
-          item.id === editingId
-            ? { ...item, name: editingName.trim(), category: editingCategory, tags: editingTags }
-            : item
-        )
+        items.map((item) => {
+          if (item.id !== editingId) return item;
+          const { notes: _dropped, ...rest } = item;
+          const updated = { ...rest, name: editingName.trim(), category: editingCategory, tags: editingTags };
+          if (notes) updated.notes = notes;
+          return updated;
+        })
       );
     }
     setEditingId(null);
     setEditingName('');
     setEditingCategory(null);
     setEditingTags([]);
-  }, [editingId, editingName, editingCategory, editingTags, items, onItemsChange]);
+    setEditingNotes('');
+  }, [editingId, editingName, editingCategory, editingTags, editingNotes, items, onItemsChange]);
 
   const cancelEdit = useCallback(() => {
     setEditingId(null);
     setEditingName('');
     setEditingCategory(null);
     setEditingTags([]);
+    setEditingNotes('');
   }, []);
 
   const handleAddAttachment = useCallback((attachment) => {
@@ -147,6 +158,8 @@ export function useItemEditing({ items, sessions, onItemsChange }) {
     newItemAttachments,
     addNewItemAttachment,
     removeNewItemAttachment,
+    newItemNotes,
+    setNewItemNotes,
     addItem,
 
     // Editing
@@ -157,6 +170,8 @@ export function useItemEditing({ items, sessions, onItemsChange }) {
     setEditingCategory,
     editingTags,
     setEditingTags,
+    editingNotes,
+    setEditingNotes,
     startEditing,
     saveEdit,
     cancelEdit,

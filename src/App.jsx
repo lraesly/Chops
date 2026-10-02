@@ -698,6 +698,8 @@ function AppContent({ isTauri, resetStorage }) {
       tags: [],
       attachments,
     };
+    // Its note (e.g. a coach's tip) becomes the item's coach notes
+    if (item.note) newPracticeItem.notes = item.note;
     setPracticeItems(prev => [...prev, newPracticeItem]);
     setTodoItems(prev => prev.filter(i => i.id !== item.id));
     addToast(`Moved "${item.name}" to practice items`);

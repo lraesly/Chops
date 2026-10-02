@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
-import { Play, Pause, RotateCcw, X, ChevronUp, ChevronDown, Save, FileText, Timer, CheckCircle, TrendingUp, Calendar, Flame, Paperclip, Link as LinkIcon, Plus, Pencil, BookmarkPlus, Video } from 'lucide-react';
+import { Play, Pause, RotateCcw, X, ChevronUp, ChevronDown, Save, FileText, Timer, CheckCircle, TrendingUp, Calendar, Flame, Paperclip, Link as LinkIcon, Plus, Pencil, BookmarkPlus, Video, MessageSquareText } from 'lucide-react';
 import { useTimer, formatTime, parseTimeInput } from '../hooks/useTimer';
 import { MetronomePopup } from './MetronomePopup';
 import { RecordButton } from './RecordButton';
@@ -471,6 +471,16 @@ export const PracticeSession = forwardRef(function PracticeSession({
                 {formatTime(itemTimer.time)}
               </div>
             </div>
+            {/* Coach notes for the current item */}
+            {currentItem.notes && (
+              <div className="mt-3 pt-3 border-t border-white/20">
+                <div className="flex items-center gap-2 text-primary-200 text-sm mb-1">
+                  <MessageSquareText size={14} />
+                  <span>Coach notes</span>
+                </div>
+                <p className="text-sm text-white/90 whitespace-pre-wrap">{currentItem.notes}</p>
+              </div>
+            )}
             {/* Show attachments for current item */}
             {currentItem.attachments?.length > 0 && (
               <div className="mt-3 pt-3 border-t border-white/20">
@@ -641,6 +651,11 @@ export const PracticeSession = forwardRef(function PracticeSession({
 
                   <div className="flex-1 flex items-center gap-2">
                     <span className="text-gray-700 dark:text-gray-200">{item.name}</span>
+                    {item.notes && (
+                      <span className="inline-flex items-center text-gray-400 dark:text-gray-500" title={item.notes}>
+                        <MessageSquareText size={12} />
+                      </span>
+                    )}
                     {index === currentItemIndex && itemTimer.isRunning && (
                       <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-primary-600 text-white rounded animate-pulse">
                         Now

@@ -20,6 +20,8 @@ export function AddItemForm({
   newItemAttachments,
   onAddAttachment,
   onRemoveAttachment,
+  newItemNotes = '',
+  setNewItemNotes,
   onAddItem,
   userTags,
   onAddTag,
@@ -88,6 +90,16 @@ export function AddItemForm({
               Attach
             </button>
           </div>
+
+          {setNewItemNotes && (
+            <textarea
+              value={newItemNotes}
+              onChange={(e) => setNewItemNotes(e.target.value)}
+              placeholder="Coach notes: tips to keep in mind while practicing (optional)"
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          )}
 
           {newItemAttachments && newItemAttachments.length > 0 && (
             <div className="flex flex-wrap gap-1.5">

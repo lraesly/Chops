@@ -69,7 +69,7 @@ const guide = [
   },
   {
     title: 'Items, To Do and Templates',
-    body: 'Items is your practice library: categories, tags, and link or PDF attachments. To Do holds ideas for later; move one to Items when you\'re ready. The pencil adds a note, a link or a label to a to-do. Templates are saved queues, such as a warm-up; Load replaces the queue with one.',
+    body: 'Items is your practice library: categories, tags, coach notes and link or PDF attachments. Coach notes show on the timer card while you practice the item. To Do holds ideas for later; move one to Items when you\'re ready (its note becomes the item\'s coach notes). The pencil adds a note, a link or a label to a to-do. Templates are saved queues, such as a warm-up; Load replaces the queue with one.',
   },
   {
     title: 'History and Stats',
