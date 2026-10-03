@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
-import { Play, Pause, RotateCcw, X, ChevronUp, ChevronDown, Save, FileText, Timer, CheckCircle, TrendingUp, Calendar, Flame, Paperclip, Link as LinkIcon, Plus, Pencil, BookmarkPlus, Video, MessageSquareText } from 'lucide-react';
+import { Play, Pause, RotateCcw, X, ChevronUp, ChevronDown, Save, FileText, Timer, CheckCircle, TrendingUp, Calendar, Flame, Paperclip, Link as LinkIcon, Plus, Pencil, BookmarkPlus, Video, MessageSquareText, CalendarDays } from 'lucide-react';
 import { useTimer, formatTime, parseTimeInput } from '../hooks/useTimer';
 import { MetronomePopup } from './MetronomePopup';
 import { RecordButton } from './RecordButton';
@@ -10,6 +10,17 @@ import { AttachmentList } from './AttachmentList';
 import { RichTextEditor } from './RichTextEditor';
 import { openLink } from '../hooks/todoInbox';
 import { ConfirmDialog } from './ConfirmDialog';
+
+// "Friday, Oct 2"
+const formatDay = (date) => date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+// Local calendar date as YYYY-MM-DD
+const toYmd = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+// Whole calendar days from one date to another
+const daysBetween = (from, to) =>
+  Math.round((new Date(`${toYmd(to)}T00:00`) - new Date(`${toYmd(from)}T00:00`)) / 86400000);
 
 export const PracticeSession = forwardRef(function PracticeSession({
   sessionItems,
@@ -31,6 +42,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
   metronome,
   practiceNotes = '',
   onPracticeNotesChange,
+  sessionStartedAt = null,
 }, ref) {
   const sessionTimer = useTimer();
   const itemTimer = useTimer();
@@ -43,6 +55,8 @@ export const PracticeSession = forwardRef(function PracticeSession({
   const confirmationClosedRef = useRef(null);
   const [savedSessionInfo, setSavedSessionInfo] = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Set when a session started on an earlier day is being saved: { start, today }
+  const [dayPrompt, setDayPrompt] = useState(null);
   // Inline editing of an item's time (only allowed while the session is paused)
   const [editingTimeIndex, setEditingTimeIndex] = useState(null);
   const [editingTimeValue, setEditingTimeValue] = useState('');
@@ -84,9 +98,10 @@ export const PracticeSession = forwardRef(function PracticeSession({
     isRunning: sessionTimer.isRunning,
     saveSession: handleSaveSession,
     // Save & Quit: save, then resolve when the user dismisses the Session Saved summary
+    // Resolves false if the user cancels the "which day?" prompt instead.
     saveSessionAndWait: () => new Promise((resolve) => {
       if (sessionItems.length === 0 || sessionTimer.time === 0) {
-        resolve();
+        resolve(true);
         return;
       }
       confirmationClosedRef.current = resolve;
@@ -347,8 +362,28 @@ export const PracticeSession = forwardRef(function PracticeSession({
     return streak;
   };
 
+  // A session started on an earlier day (left open overnight, say) asks which day it
+  // belongs to; otherwise it's logged to now.
   const handleSaveSession = () => {
     if (sessionItems.length === 0 || sessionTimer.time === 0) return;
+    const start = sessionStartedAt ? new Date(sessionStartedAt) : null;
+    const today = new Date();
+    if (start && !Number.isNaN(start.getTime()) && start < today && start.toDateString() !== today.toDateString()) {
+      setDayPrompt({ start, today });
+      return;
+    }
+    commitSaveSession(today.toISOString());
+  };
+
+  const cancelDayPrompt = () => {
+    setDayPrompt(null);
+    // Tell a waiting Save & Quit that nothing was saved
+    confirmationClosedRef.current?.(false);
+    confirmationClosedRef.current = null;
+  };
+
+  const commitSaveSession = (dateIso) => {
+    setDayPrompt(null);
 
     // Save current item time
     if (currentItem) {
@@ -357,7 +392,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
 
     const session = {
       id: Date.now().toString(),
-      date: new Date().toISOString(),
+      date: dateIso,
       duration: sessionTimer.time,
       notes: practiceNotes.trim() || null,
       items: sessionItems.map((item, index) => ({
@@ -823,7 +858,7 @@ export const PracticeSession = forwardRef(function PracticeSession({
             <button
               onClick={() => {
                 setShowConfirmation(false);
-                confirmationClosedRef.current?.();
+                confirmationClosedRef.current?.(true);
                 confirmationClosedRef.current = null;
               }}
               className="w-full px-4 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium"
@@ -835,6 +870,72 @@ export const PracticeSession = forwardRef(function PracticeSession({
       )}
 
       {/* Save as Template */}
+      {/* Which day? Shown when saving a session that was started on an earlier day */}
+      {dayPrompt && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              cancelDayPrompt();
+            }
+          }}
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-primary-100 dark:bg-primary-900/40 rounded-lg">
+                <CalendarDays className="text-primary-600 dark:text-primary-400" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Which day was this session?</h3>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              You started this session on {formatDay(dayPrompt.start)} and are saving it on {formatDay(dayPrompt.today)}.
+              Choose the day it should be logged to in History and Stats.
+            </p>
+            <div className="space-y-2 mb-4">
+              <button
+                autoFocus
+                onClick={() => commitSaveSession(dayPrompt.start.toISOString())}
+                className="w-full px-4 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium text-left"
+              >
+                {formatDay(dayPrompt.start)}
+                <span className="block text-xs font-normal text-primary-200">The day you started it</span>
+              </button>
+              <button
+                onClick={() => commitSaveSession(new Date().toISOString())}
+                className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium text-left"
+              >
+                {formatDay(dayPrompt.today)}
+                <span className="block text-xs font-normal text-gray-500 dark:text-gray-400">Today</span>
+              </button>
+              {/* Only when there are days in between */}
+              {daysBetween(dayPrompt.start, dayPrompt.today) > 1 && (
+                <label className="flex items-center justify-between gap-3 px-4 py-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-sm text-gray-600 dark:text-gray-300">
+                  Another day
+                  <input
+                    type="date"
+                    min={toYmd(dayPrompt.start)}
+                    max={toYmd(dayPrompt.today)}
+                    onChange={(e) => {
+                      const picked = new Date(`${e.target.value}T12:00`);
+                      if (!e.target.value || Number.isNaN(picked.getTime())) return;
+                      if (e.target.value < toYmd(dayPrompt.start) || e.target.value > toYmd(dayPrompt.today)) return;
+                      commitSaveSession(picked.toISOString());
+                    }}
+                    className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </label>
+              )}
+            </div>
+            <button
+              onClick={cancelDayPrompt}
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       {showSaveTemplate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <form

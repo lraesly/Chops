@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { message } from '@tauri-apps/plugin-dialog';
@@ -61,7 +61,16 @@ function AppContent({ isTauri, resetStorage }) {
   const [sessions, setSessions, sessionsLoaded] = useFileStorage('practiceSessions', []);
   const [recordings, setRecordings, recordingsLoaded] = useFileStorage('sessionRecordings', []);
   const [sessionNotes, setSessionNotes, sessionNotesLoaded] = useFileStorage('sessionNotes', '');
-  const [sessionTotalTime, setSessionTotalTime] = useFileStorage('sessionTotalTime', 0);
+  const [sessionTotalTime, setSessionTotalTime, sessionTotalTimeLoaded] = useFileStorage('sessionTotalTime', 0);
+  // When the current session was started, so a session saved on a later day can be
+  // logged to the right one
+  const [sessionStartedAt, setSessionStartedAt, sessionStartedAtLoaded] = useFileStorage('sessionStartedAt', null);
+  // The session's time is stored within a few seconds of the timer starting; the first
+  // time it's non-zero marks the start of the session
+  const handleSessionTimeChange = useCallback((time) => {
+    setSessionTotalTime(time);
+    if (time > 0) setSessionStartedAt((prev) => prev || new Date().toISOString());
+  }, [setSessionTotalTime, setSessionStartedAt]);
   const [userTags, setUserTags] = useFileStorage('userTags', []);
   const [todoItems, setTodoItems, todosLoaded] = useFileStorage('todoItems', []);
   const [archivedTodoItems, setArchivedTodoItems, archivedTodosLoaded] = useFileStorage('archivedTodoItems', []);
@@ -143,8 +152,9 @@ function AppContent({ isTauri, resetStorage }) {
       }
       try {
         if (choice === SAVE_AND_QUIT || choice === 'Yes') {
-          // Shows the usual Session Saved summary; quit once it's dismissed
-          await session.saveSessionAndWait();
+          // Shows the usual Session Saved summary; quit once it's dismissed. Cancelling
+          // the "which day?" prompt cancels the quit too.
+          if ((await session.saveSessionAndWait()) === false) return false;
         } else {
           session.persistProgress();
         }
@@ -332,7 +342,8 @@ function AppContent({ isTauri, resetStorage }) {
   // One-time move of audio that older versions stored inline in the data file
   // (as base64) out to separate files, which keeps the data file small.
   const audioMigrationStartedRef = useRef(false);
-  const allDataLoaded = itemsLoaded && sessionsLoaded && sessionItemsLoaded && recordingsLoaded && sessionNotesLoaded;
+  const allDataLoaded = itemsLoaded && sessionsLoaded && sessionItemsLoaded && recordingsLoaded && sessionNotesLoaded
+    && sessionTotalTimeLoaded && sessionStartedAtLoaded;
   useEffect(() => {
     if (!isTauri || !allDataLoaded || audioMigrationStartedRef.current) return;
     const embedded = [
@@ -535,6 +546,7 @@ function AppContent({ isTauri, resetStorage }) {
     setRecordings([]);
     setSessionNotes('');
     setSessionTotalTime(0);
+    setSessionStartedAt(null);
   };
 
   const handleResetPracticeSession = () => {
@@ -543,6 +555,7 @@ function AppContent({ isTauri, resetStorage }) {
     setSessionNotes('');
     trashDroppedAudio(recordings, sessions, []);
     setSessionTotalTime(0);
+    setSessionStartedAt(null);
   };
 
   // Deleting a session trashes its audio; videos stay in the user's video folder
@@ -797,6 +810,7 @@ function AppContent({ isTauri, resetStorage }) {
     setSessionNotes('');
     trashDroppedAudio(recordings, sessions, []);
     setSessionTotalTime(0);
+    setSessionStartedAt(null);
     setCurrentView('practice');
     addToast(`Loaded template "${template.name}"`);
   };
@@ -811,6 +825,7 @@ function AppContent({ isTauri, resetStorage }) {
     setSessionNotes('');
     trashDroppedAudio([...recordings, ...sessions.flatMap((s) => s.recordings || [])], [], []);
     setSessionTotalTime(0);
+    setSessionStartedAt(null);
     setTodoItems([]);
     setArchivedTodoItems([]);
     setNotes([]);
@@ -892,7 +907,8 @@ function AppContent({ isTauri, resetStorage }) {
               sessions={sessions}
               onOpenItemsPicker={() => setIsItemsModalOpen(true)}
               initialSessionTime={sessionTotalTime}
-              onSessionTimeChange={setSessionTotalTime}
+              onSessionTimeChange={handleSessionTimeChange}
+              sessionStartedAt={sessionStartedAt}
               onSaveTemplate={handleCreateTemplate}
               metronome={metronome}
               practiceNotes={sessionNotes}

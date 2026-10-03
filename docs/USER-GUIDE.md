@@ -72,13 +72,15 @@ Open **Practice Notes** under the timer to jot down how the session went. Bold, 
 
 When you're done, click **Save Session** (or **⌘S** / **Ctrl+S**). Chops stores the date, total time, each item's time, your notes and your recordings, then clears the queue. A summary shows this session, your month so far and your current streak.
 
+**Saving on a later day.** If you started a session one day and save it on another (you left it open overnight, say), Chops asks **Which day was this session?** Choose the day you started it or today; if more days have passed, you can pick any day in between. The session is logged to that day in History and Stats. **Cancel** leaves the session unsaved.
+
 **Reset** (the circular arrow) clears the timer, queue, notes and recordings without saving. Audio recordings go to the Trash; video files stay in your video folder.
 
 **Save Template** (above the queue) saves the current items, in order, as a reusable [template](#templates).
 
 The session keeps running while you look at other tabs: timers keep counting and an audio recording in progress carries on. The video recorder stays on screen until you close it.
 
-If you quit (⌘Q) or close the window during a session, Chops asks whether to **Save & Quit** (the session goes to History) or **Just Quit**. Just quitting keeps the session: the queue, times, notes and recordings are all there when you open Chops again.
+If you quit (⌘Q) or close the window during a session, Chops asks whether to **Save & Quit** (the session goes to History) or **Just Quit**. If Save & Quit then asks which day the session was and you cancel, Chops stays open. Just quitting keeps the session: the queue, times, notes and recordings are all there when you open Chops again.
 
 ---
 
