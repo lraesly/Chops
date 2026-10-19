@@ -72,7 +72,7 @@ Pushing a `v*` tag (for example `v0.6.0`) runs the GitHub Actions workflow in `.
 
 - **Frontend**: React 19, Tailwind CSS 4, Vite
 - **Backend**: Tauri 2 (Rust)
-- **Storage**: A JSON data file in a user-selected folder; videos in a user-chosen video folder; audio recordings in the app's data folder
+- **Storage**: A JSON data file in a user-selected folder; videos and audio recordings (WAV) in user-chosen folders (audio defaults to the app's data folder)
 
 ## License
 

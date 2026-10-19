@@ -78,7 +78,7 @@ const guide = [
   },
   {
     title: 'Your files',
-    body: 'Practice data lives in your data folder (Settings > Storage Location). Videos go to your Video Folder. Chops keeps audio recordings in its own app folder. Export Backup saves your data but not recordings, so back those up too. Deleted recordings go to the Trash, never straight to deletion.',
+    body: 'Practice data lives in your data folder (Settings > Storage Location). Videos go to your Video Folder and audio recordings (WAV) to your Audio Folder; until you choose one, audio stays in the Chops app folder. Export Backup saves your data but not recordings, so back those up too. Deleted recordings go to the Trash, never straight to deletion.',
   },
 ];
 

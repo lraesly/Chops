@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Play, Pause, Trash2, Save, Video } from 'lucide-react';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { createAudioRecording } from '../hooks/audioStorage';
@@ -7,11 +7,17 @@ import { VideoPlayerModal } from './VideoPlayerModal';
 import { ConfirmDialog } from './ConfirmDialog';
 
 export function AudioRecorder({ onSaveRecording, sessionInstanceId }) {
-  const { isRecording, audioUrl, toggleRecording, clearRecording, audioBlob, mimeType } =
-    useAudioRecorder();
+  const {
+    isRecording, audioUrl, toggleRecording, clearRecording, audioBlob, mimeType,
+    audioInputs, audioInputId, refreshAudioInputs, selectAudioInput,
+  } = useAudioRecorder();
   const [recordingName, setRecordingName] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
+
+  useEffect(() => {
+    refreshAudioInputs();
+  }, [refreshAudioInputs]);
 
   const handlePlayPause = () => {
     if (audioRef.current) {
@@ -67,6 +73,21 @@ export function AudioRecorder({ onSaveRecording, sessionInstanceId }) {
           {isRecording ? <Square size={20} /> : <Mic size={20} />}
         </button>
       </div>
+
+      <label className="block text-sm text-gray-600 dark:text-gray-300 mb-3">
+        Audio input
+        <select
+          className="mt-1 w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          value={audioInputs.some((d) => d.deviceId === audioInputId) ? audioInputId : ''}
+          disabled={isRecording}
+          onChange={(e) => selectAudioInput(e.target.value)}
+        >
+          <option value="">System default</option>
+          {audioInputs.map((d) => (
+            <option key={d.deviceId} value={d.deviceId}>{d.label || 'Audio input'}</option>
+          ))}
+        </select>
+      </label>
 
       {isRecording && (
         <div className="flex items-center gap-2 text-red-500 text-sm mb-3">

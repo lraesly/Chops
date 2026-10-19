@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { encodeWav } from '../constants/wav';
+import { takeToWav } from './takeToWav';
+import { loadSavedDevices, saveDevices, resolveSavedAudioInput, listAudioInputs } from './mediaDevices';
 
 const MIME_TYPES = [
   'audio/webm;codecs=opus',
@@ -9,45 +10,6 @@ const MIME_TYPES = [
   'audio/ogg',
   'audio/wav',
 ];
-
-// A take whose quieter channel is this far below the louder one (-40 dB) came from a
-// one-sided source, such as an interface with the guitar on input 1 only
-const ONE_SIDED_RATIO = 0.01;
-
-// Recording goes straight from the mic to MediaRecorder: routing it through Web Audio
-// to mix down to mono caused brief dropouts, because Web Audio runs on the output
-// device's clock. Instead, a take with sound on only one side is turned into a
-// centered mono WAV after recording; everything else keeps the original file.
-export async function centerOneSidedTake(blob) {
-  // Decode at 48 kHz, the rate recordings are made at, so nothing is resampled
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  let context;
-  try {
-    context = new AudioCtx({ sampleRate: 48000 });
-  } catch {
-    context = new AudioCtx();
-  }
-  try {
-    const buffer = await context.decodeAudioData(await blob.arrayBuffer());
-    if (buffer.numberOfChannels < 2) return null;
-    const rms = (data) => {
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
-      return Math.sqrt(sum / data.length);
-    };
-    const left = buffer.getChannelData(0);
-    const right = buffer.getChannelData(1);
-    const [l, r] = [rms(left), rms(right)];
-    const louder = Math.max(l, r);
-    if (louder === 0 || Math.min(l, r) / louder > ONE_SIDED_RATIO) return null;
-    return encodeWav([l >= r ? left : right], buffer.sampleRate);
-  } catch (error) {
-    console.error('Could not check the take for one-sided audio:', error);
-    return null;
-  } finally {
-    context.close().catch(() => {});
-  }
-}
 
 function getSupportedMimeType() {
   for (const mimeType of MIME_TYPES) {
@@ -64,6 +26,8 @@ export function useAudioRecorder() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [mimeType, setMimeType] = useState(null);
   const [permissionState, setPermissionState] = useState('prompt');
+  const [audioInputs, setAudioInputs] = useState([]);
+  const [audioInputId, setAudioInputId] = useState(() => loadSavedDevices().audioInputId || '');
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const streamRef = useRef(null);
@@ -95,6 +59,31 @@ export function useAudioRecorder() {
     };
   }, []);
 
+  // Lists the audio inputs for the picker. Before the first permission grant the labels
+  // are hidden, so open the default mic once to get them; a list of blank entries is no
+  // use for choosing a device. The stream is closed again straight away.
+  const refreshAudioInputs = useCallback(async () => {
+    let list = await listAudioInputs();
+    if (list.length > 0 && list.every((d) => !d.label)) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+        list = await listAudioInputs();
+      } catch {
+        // Denied or no device: the picker shows what it can
+      }
+    }
+    setAudioInputs(list);
+    return list;
+  }, []);
+
+  // The choice takes effect on the next take; a recording in progress keeps its input
+  const selectAudioInput = useCallback((id) => {
+    setAudioInputId(id);
+    const device = audioInputs.find((d) => d.deviceId === id);
+    saveDevices({ audioInputId: id, audioInputLabel: device?.label || '' });
+  }, [audioInputs]);
+
   const startRecording = useCallback(async () => {
     // If permission was denied, show specific message
     if (permissionState === 'denied') {
@@ -103,8 +92,12 @@ export function useAudioRecorder() {
     }
 
     try {
+      // A saved input that is gone (unplugged, ID changed) falls back to the default mic
+      const audioInput = resolveSavedAudioInput(await listAudioInputs(), audioInputId);
+      // Leave the signal untouched so a Loopback/DAW mix comes through as-is
       const audioConstraints = {
         audio: {
+          ...(audioInput && { deviceId: { exact: audioInput.deviceId } }),
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
@@ -113,6 +106,15 @@ export function useAudioRecorder() {
       };
       const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
       streamRef.current = stream;
+
+      // Labels are available now, so remember what was actually opened
+      const track = stream.getAudioTracks()[0];
+      const openedId = track?.getSettings().deviceId || '';
+      if (openedId) {
+        setAudioInputId(openedId);
+        saveDevices({ audioInputId: openedId, audioInputLabel: track.label || '' });
+      }
+      listAudioInputs().then(setAudioInputs).catch(() => {});
 
       const supportedMimeType = getSupportedMimeType();
 
@@ -136,9 +138,18 @@ export function useAudioRecorder() {
       mediaRecorderRef.current.onstop = async () => {
         stream.getTracks().forEach(track => track.stop());
         const recorded = new Blob(chunksRef.current, { type: actualMimeType });
-        const centered = await centerOneSidedTake(recorded);
-        const blob = centered || recorded;
-        setMimeType(centered ? 'audio/wav' : actualMimeType);
+        // Takes are kept as WAV; if the decode fails the compressed take is kept rather
+        // than losing the performance
+        let blob = recorded;
+        let type = actualMimeType;
+        try {
+          const wav = await takeToWav(recorded);
+          blob = new Blob([wav.bytes], { type: wav.mimeType });
+          type = wav.mimeType;
+        } catch (error) {
+          console.error('Could not convert the take to WAV, keeping the original:', error);
+        }
+        setMimeType(type);
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
       };
@@ -149,13 +160,13 @@ export function useAudioRecorder() {
       console.error('Error starting recording:', error);
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         alert('Microphone access was denied. Please enable it in System Settings > Privacy & Security > Microphone.');
-      } else if (error.name === 'NotFoundError') {
-        alert('No microphone found. Please connect a microphone and try again.');
+      } else if (error.name === 'NotFoundError' || error.name === 'OverconstrainedError') {
+        alert('The selected audio input is not available. Pick another input and try again.');
       } else {
         alert('Could not access microphone: ' + error.message);
       }
     }
-  }, [permissionState]);
+  }, [permissionState, audioInputId]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -191,6 +202,10 @@ export function useAudioRecorder() {
     audioUrl,
     mimeType,
     permissionState,
+    audioInputs,
+    audioInputId,
+    refreshAudioInputs,
+    selectAudioInput,
     startRecording,
     stopRecording,
     toggleRecording,

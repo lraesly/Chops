@@ -1,9 +1,10 @@
-// Audio recordings are saved as standalone files in Chops' private app data folder
-// (~/Library/Application Support/com.chops.practice/Audio Recordings on macOS),
-// out of the user's way; videos go to a user-chosen folder instead.
+// Audio recordings are saved as standalone files in a user-chosen folder (Settings >
+// Audio Folder). Until one is chosen they go to Chops' private app data folder
+// (~/Library/Application Support/com.chops.practice/Audio Recordings on macOS), which is
+// where every recording lived before the setting existed; those stay put.
 // Older recordings kept the audio inline as a base64 data URL in the JSON data file;
 // migrateEmbeddedAudio() moves those out. Outside Tauri (browser dev) audio stays inline.
-import { isTauri, loadTauriModules, getStoragePath } from './useFileStorage';
+import { isTauri, loadTauriModules, getStoragePath, readAppConfig, writeAppConfig } from './useFileStorage';
 import { joinPath, timestamp, safeFileName } from './videoStorage';
 import { blobToBase64, base64ToBlob } from './useAudioRecorder';
 
@@ -18,9 +19,46 @@ const audioExtension = (mimeType = '') => {
   return 'webm';
 };
 
-const getAudioFolder = async () => {
+export const getDefaultAudioFolder = async () => {
+  if (!isTauri()) return null;
   const { path } = await loadTauriModules();
   return path ? joinPath(await path.appDataDir(), AUDIO_FOLDER_NAME) : null;
+};
+
+export const getAudioFolder = async () => {
+  if (!isTauri()) return null;
+  const config = await readAppConfig();
+  return config.audioFolder || getDefaultAudioFolder();
+};
+
+// Pass null to go back to the default folder
+export const setAudioFolder = async (folder) => {
+  const config = await readAppConfig();
+  if (folder) {
+    config.audioFolder = folder;
+  } else {
+    delete config.audioFolder;
+  }
+  await writeAppConfig(config);
+};
+
+export const pickAudioFolder = async () => {
+  if (!isTauri()) return null;
+  const { dialog } = await loadTauriModules();
+  return dialog.open({
+    directory: true,
+    multiple: false,
+    defaultPath: await getAudioFolder(),
+    title: 'Choose where to save audio recordings',
+  });
+};
+
+export const openAudioFolder = async () => {
+  const { fs } = await loadTauriModules();
+  const folder = await getAudioFolder();
+  await fs.mkdir(folder, { recursive: true });
+  const { invoke } = await import('@tauri-apps/api/core');
+  await invoke('open_file', { path: folder });
 };
 
 // Writes the bytes to a new file named "Chops <date time> <name>.<ext>"; returns its path.

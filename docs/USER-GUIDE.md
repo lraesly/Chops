@@ -86,7 +86,7 @@ If you quit (⌘Q) or close the window during a session, Chops asks whether to *
 
 ## Recording audio
 
-Once a session has started, click the **microphone** on the timer card (or press **R**) to record. Click it again (or press **R**) to stop.
+Once a session has started, click the **microphone** on the timer card (or press **R**) to record. Click it again (or press **R**) to stop. The small arrow beside the microphone picks the **audio input** (an interface, or a virtual device such as Loopback); Chops remembers it, and the video recorder uses the same input.
 
 After stopping you can play the take back, give it a name and **Save** it, or discard it with the trash icon. Saved recordings appear in the **Recordings** list below and are tied to the item you were practicing when you started.
 
@@ -95,7 +95,7 @@ In the Recordings list:
 - **▶** plays a recording.
 - The **trash icon** deletes it after asking. The file goes to the Trash, so you can get it back.
 
-Audio is recorded straight from your input, without echo cancellation, noise suppression or automatic gain. If a take has sound on only one side (for example an interface with your guitar on input 1), Chops saves it as a centered mono WAV so it doesn't play from one speaker. The first time you record, macOS asks for microphone access.
+Audio is recorded straight from your input, without echo cancellation, noise suppression or automatic gain, and saved as a 48 kHz WAV file in your Audio Folder. If a take has sound on only one side (for example an interface with your guitar on input 1), Chops saves it as centered mono so it doesn't play from one speaker. The first time you record, macOS asks for microphone access.
 
 To keep a copy outside Chops, use **Export WAV** on the recording in [History](#history); Chops asks where to save it.
 
@@ -263,7 +263,7 @@ Your practice statistics, in four views. The **All Tags** menu at the top narrow
 |---|---|
 | Practice data | `practice-log-data.json` in your data folder (default `Documents/Music Practice Log`) |
 | Videos | Your video folder (default `Movies/Chops`), named `Chops <date> <time> <name>.mp4` |
-| Audio recordings | Kept by Chops in `~/Library/Application Support/com.chops.practice/Audio Recordings`. You don't need to manage these. |
+| Audio recordings | WAV files in your **Audio Folder** (Settings). Until you choose one, Chops keeps them in `~/Library/Application Support/com.chops.practice/Audio Recordings`. Recordings made before you change the folder stay where they are. |
 | PDF attachments | Inside the practice data file |
 
 **Deleting things.** Chops never erases a recording outright; files go to the Trash (the Recycle Bin on Windows), so a mistake can be undone.
@@ -272,7 +272,7 @@ Your practice statistics, in four views. The **All Tags** menu at the top narrow
 - Removing a queue item, resetting a session, loading a template, deleting sessions or resetting all data moves their **audio** to the Trash. **Videos** are yours to manage and stay in your video folder.
 - A file is never trashed while another session still uses it.
 
-**Syncing between computers.** A synced data folder carries your items and sessions. Audio recordings stay on the computer that made them, and videos live wherever your video folder is.
+**Syncing between computers.** A synced data folder carries your items and sessions. Audio recordings and videos live wherever your audio and video folders are.
 
 ---
 

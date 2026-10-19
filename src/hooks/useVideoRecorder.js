@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createVideoFile, appendToVideoFile } from './videoStorage';
+import { loadSavedDevices, saveDevices, resolveDevice } from './mediaDevices';
 
 // WebKit (macOS) records H.264/AAC MP4; WebView2 (Windows) falls back to WebM
 const MIME_TYPES = [
@@ -10,31 +11,8 @@ const MIME_TYPES = [
   'video/webm',
 ];
 
-const DEVICES_KEY = 'chops_videoDevices';
-
 function getSupportedMimeType() {
   return MIME_TYPES.find((t) => MediaRecorder.isTypeSupported(t)) || '';
-}
-
-function loadSavedDevices() {
-  try {
-    return JSON.parse(localStorage.getItem(DEVICES_KEY)) || {};
-  } catch {
-    return {};
-  }
-}
-
-function saveDevices(devices) {
-  try {
-    localStorage.setItem(DEVICES_KEY, JSON.stringify(devices));
-  } catch {
-    // Remembering devices is a convenience only
-  }
-}
-
-// Device IDs can change (e.g. after an OS update), so fall back to the label
-function resolveDevice(list, id, label) {
-  return list.find((d) => d.deviceId === id) || list.find((d) => label && d.label === label) || null;
 }
 
 export function useVideoRecorder() {
